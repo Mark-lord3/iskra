@@ -21,6 +21,23 @@ export default function Nav({ onTickets }) {
     return () => io.disconnect();
   }, []);
 
+  // With the menu open the page behind it must not scroll, Escape must close
+  // it, and a rotate to landscape must not leave it stranded over the content.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = e => { if (e.key === 'Escape') setOpen(false); };
+    const onResize = () => { if (window.innerWidth > 860) setOpen(false); };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onResize);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [open]);
+
   return (
     <>
       <div ref={sentinel} aria-hidden="true" style={{ position:'absolute', top:0, height:12, width:'100%' }} />
@@ -31,11 +48,13 @@ export default function Nav({ onTickets }) {
             {LINKS.map(([href, label]) => <a key={href} href={href}>{label}</a>)}
           </div>
           <button className="btn btn-primary btn-sm" onClick={() => onTickets('next')}>Get tickets</button>
-          <button className="burger" aria-label="Menu" aria-expanded={open}
+          <button className={'burger' + (open ? ' open' : '')}
+                  aria-label={open ? 'Close menu' : 'Open menu'}
+                  aria-expanded={open} aria-controls="mobilemenu"
                   onClick={() => setOpen(o => !o)}><span /></button>
         </div>
       </nav>
-      <div className={'mobilemenu' + (open ? ' open' : '')}>
+      <div id="mobilemenu" className={'mobilemenu' + (open ? ' open' : '')}>
         {LINKS.map(([href, label]) => (
           <a key={href} href={href} onClick={() => setOpen(false)}>{label}</a>
         ))}

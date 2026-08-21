@@ -631,3 +631,205 @@ footer{border-top:1px solid var(--line);padding-block:clamp(48px,6vw,80px) 28px;
   .about-invite>img{object-position:58% center}
   .about-invite-actions{align-items:flex-start;flex-direction:column;gap:22px}
 }
+
+/* ============================================================================
+   MOBILE LAYER
+   Phone-first corrections layered on top of the desktop design. Nothing here
+   changes colour, type family, photography or desktop layout: it only fixes
+   fit, touch, and hierarchy at narrow widths. Rules are keyed to content
+   breakpoints (where a given layout actually stops working), not to devices.
+   ============================================================================ */
+
+:root{ --tap:44px; }
+
+/* Headlines break on sense rather than dropping one word onto its own line. */
+.h-xl,.h-lg,.h-md,.page-hero h1,.overlay h3,.offer-hero-body h3,.nl h3,
+.admin-panel h2,.about-invite h2,.sec-head h2{ text-wrap:balance; }
+.lead,.ev-support,.offer p,.prize p{ text-wrap:pretty; }
+
+/* Viewport-height units that respond to the mobile browser chrome. */
+.hero{ min-height:min(92dvh,860px); }
+.modal-in{ max-height:88dvh; }
+
+/* Notch and rounded-corner safety without disturbing the desktop gutter. */
+@supports(padding:max(0px)){
+  .wrap,.rail{
+    padding-left:max(var(--pad),env(safe-area-inset-left));
+    padding-right:max(var(--pad),env(safe-area-inset-right));
+  }
+}
+
+/* ---------------------------------------------------------------- tablet */
+@media(max-width:900px){
+  /* The desktop rule collapses metrics to a single column, which turns five
+     numbers into five full-width slabs. Two up reads as a dashboard. */
+  .admin-metrics{ grid-template-columns:repeat(2,1fr); }
+  .admin-list{ max-height:none; }        /* was 440px: clipped rows on phones */
+  .admin-key{ width:100%; }
+}
+
+/* ------------------------------------------------------------ phone core */
+@media(max-width:860px){
+  /* Vertical rhythm: desktop section padding leaves 150px voids on a phone. */
+  .section{ padding-block:clamp(52px,9vw,84px); }
+  .page-hero{ min-height:auto; padding-block:clamp(96px,22vw,132px) clamp(36px,8vw,56px); }
+
+  /* Hero stacks: the countdown card was running off the right edge. */
+  .hero-grid{ grid-template-columns:1fr; align-items:stretch; gap:30px; }
+  .hero-top{ gap:8px; margin-bottom:22px; }
+  .countdown{ width:100%; }
+
+  /* Touch targets. 44px minimum on everything a thumb can hit. */
+  .btn{ min-height:var(--tap); }
+  .btn-sm{ min-height:var(--tap); padding-block:11px; }
+  .burger{ width:var(--tap); height:var(--tap); }
+  .logo{ min-height:var(--tap); }
+  .filter{ min-height:var(--tap); }
+  .code{ min-height:var(--tap); }
+  .x{ width:var(--tap); height:var(--tap); }
+  .promobar-x{ width:var(--tap); height:var(--tap); display:grid; place-items:center;
+               margin-right:calc(var(--pad) * -0.35); }
+  .foot-grid ul{ gap:0; }
+  .foot-grid li a{ display:flex; align-items:center; min-height:var(--tap); }
+  .board-foot a,.about-text-link,.lb-row a{ display:inline-flex; align-items:center; min-height:var(--tap); }
+  .checkline{ gap:14px; align-items:center; }
+  .checkline input{ width:24px; height:24px; margin-top:0; }
+
+  /* Legibility: mono micro-labels sit at 9-10.5px on desktop, which is below
+     comfortable reading size on a phone. */
+  .eyebrow,.tag,.chip,.stat span,.cd-cell span,.foot-grid h5,.hud-item,
+  .lb-prize,.prize span,.admin-metrics span,.promo-tag,.rail-cap span{ font-size:11.5px; }
+  .board-foot,.gamehint,.ev-price span{ font-size:12px; line-height:1.7; }
+
+  /* Forms: 16px is the threshold below which iOS zooms the viewport on focus. */
+  input,select,textarea,
+  .field input,.contact-form input,.contact-form textarea,
+  .admin-panel input,.admin-panel textarea,.admin-key input,
+  .promoline input,.nl-form input{ font-size:16px; }
+  .field input,.contact-form input,.contact-form textarea,
+  .admin-panel input,.admin-panel textarea,.admin-key input,
+  .nl-form input,.promoline input{ min-height:var(--tap); padding:12px 14px; }
+  .contact-form textarea,.admin-panel textarea{ min-height:132px; }
+
+  /* Stats: four columns become unreadable slivers well before 860px. */
+  .stats{ grid-template-columns:1fr 1fr; }
+  .stat{ border-right:1px solid var(--line); padding:22px 18px; }
+  .stat:nth-child(2n){ border-right:0; }
+  .stat:nth-child(-n+2){ border-bottom:1px solid var(--line); }
+
+  /* Game: give the stage a real height instead of a ratio that squeezes the
+     sign-up form, and let the overlay scroll if the keyboard is open. */
+  .stage{ aspect-ratio:auto; min-height:min(600px,78dvh); }
+  .overlay{ place-items:start center; overflow-y:auto; padding-block:26px; }
+  .gamehint{ flex-direction:column; gap:7px; }
+
+  /* Photography: recentre crops that were composed for landscape frames. */
+  .ev-photo img,.memory-photos img{ object-position:center 38%; }
+}
+
+/* ------------------------------------------------------- narrow phones */
+@media(max-width:560px){
+  /* Announcement copy was truncating mid-word. Two lines, still one message. */
+  .promobar .wrap{ min-height:48px; gap:10px; }
+  .promobar-rot{ height:34px; }
+  .promobar-rot span{
+    white-space:normal; line-height:1.32; font-size:11px; letter-spacing:.06em;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+
+  /* Full-width actions read as buttons, not as fragments of a toolbar. */
+  .hero-cta{ flex-direction:column; align-items:stretch; }
+  .hero-cta .btn,.offer-actions .btn,.about-invite-actions .btn{ width:100%; }
+  .nl-form{ flex-direction:column; align-items:stretch; }
+  .nl-form input{ min-width:0; width:100%; }
+  .countdown-foot{ flex-direction:column; align-items:stretch; gap:12px; }
+  .countdown-foot .btn{ width:100%; }
+
+  /* Ticket modal becomes a bottom sheet: reachable, and it cannot outgrow
+     the viewport or hide its checkout button behind the home indicator. */
+  .modal{ padding:0; place-items:end center; }
+  .modal-in{
+    width:100%; max-width:none; max-height:92dvh;
+    border-radius:var(--r-lg) var(--r-lg) 0 0;
+    padding-bottom:calc(24px + env(safe-area-inset-bottom));
+  }
+  .modal-head h3{ font-size:24px; }
+
+  /* Mobile menu scrolls rather than running off a short screen. */
+  .mobilemenu{ max-height:calc(100dvh - 112px); overflow-y:auto;
+               padding-bottom:calc(24px + env(safe-area-inset-bottom)); }
+  .mobilemenu a{ min-height:var(--tap); display:flex; align-items:center; }
+
+  /* Admin controls stay usable instead of squeezing a button into a corner. */
+  .admin-list article{ flex-direction:column; align-items:stretch; gap:12px; }
+  .admin-list article .btn{ width:100%; }
+  .admin-inline{ grid-template-columns:1fr; }
+  .admin-top .logo{ font-size:22px; }
+  .admin-metrics b{ font-size:clamp(28px,9vw,40px); }
+  .subscriber-list span{ font-size:12px; }
+
+  .stats{ grid-template-columns:1fr; }
+  .stat{ border-right:0; border-bottom:1px solid var(--line); }
+  .stat:last-child{ border-bottom:0; }
+
+  .nl{ padding-inline:20px; }
+  .prizes{ gap:1px; }
+}
+
+/* ------------------------------------------------------------ 320px class */
+@media(max-width:380px){
+  :root{ --pad:16px; }
+  .h-xl{ font-size:clamp(38px,13vw,52px); }
+  .h-lg{ font-size:clamp(30px,10vw,40px); }
+  .cd-grid{ gap:6px; }
+  .cd-cell{ padding:10px 2px; }
+  .stage{ min-height:min(540px,74dvh); }
+  .ev-meta{ gap:5px; }
+  .tag{ padding:4px 8px; }
+}
+
+/* Focus stays visible on touch devices that also pair a keyboard. */
+@media(max-width:860px){
+  :focus-visible{ outline:2px solid var(--spark); outline-offset:3px; }
+}
+
+@media(prefers-reduced-motion:reduce){
+  .promobar-rot span{ transition:none; }
+}
+
+/* Burger becomes an X while the menu is open, so the control reads as a toggle. */
+.burger span,.burger span::before,.burger span::after{ transition:transform .25s var(--ease),opacity .2s; }
+.burger.open span{ background:transparent; }
+.burger.open span::before{ transform:translateY(5px) rotate(45deg); }
+.burger.open span::after{ transform:translateY(-5px) rotate(-45deg); }
+
+/* Remaining micro-labels. These sit at 9-10.5px for the desktop composition,
+   which is below comfortable reading size held at arm's length. */
+@media(max-width:860px){
+  .foot-bottom,.foot-bottom span{ font-size:12px; }
+  .code small{ font-size:11.5px; }
+  .board-head span{ font-size:11.5px; }
+  .contact-form span,.admin-panel label span{ font-size:12px; }
+  .about-scroll,.about-story-image figcaption,
+  .about-principles article>span{ font-size:11.5px; }
+  .about-gallery figure>span{ font-size:11px; }
+
+  /* The label is the touch target here: tapping the copy toggles the box,
+     so the row is what has to clear 44px, not the 26px control itself. */
+  .checkline{ min-height:var(--tap); }
+  .checkline input{ width:26px; height:26px; }
+}
+
+/* On short screens the sheet scrolls, which pushed Checkout out of reach.
+   Pin the primary action to the bottom of the sheet so it is always one tap. */
+@media(max-width:560px){
+  .modal-in > .btn-primary{
+    position:sticky; bottom:0; z-index:2;
+    box-shadow:0 -14px 20px -8px var(--ink-2);
+  }
+}
+
+/* Sign-up field labels in the game overlay sit at 10px on desktop. */
+@media(max-width:860px){
+  .field span{ font-size:12px; }
+}

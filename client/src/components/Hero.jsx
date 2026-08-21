@@ -52,12 +52,16 @@ export default function Hero({ event, count, onTickets }) {
                 <i className="dot" /> {event ? (soldFast ? 'Selling fast' : 'On sale') : 'Recap live'}
               </span>
             </div>
-            <div className="cd-grid">
-              <div className="cd-cell"><b>{pad(cd.days)}</b><span>Days</span></div>
-              <div className="cd-cell"><b>{pad(cd.hrs)}</b><span>Hrs</span></div>
-              <div className="cd-cell"><b>{pad(cd.min)}</b><span>Min</span></div>
-              <div className="cd-cell"><b>{pad(cd.sec)}</b><span>Sec</span></div>
-            </div>
+            {/* Only count down to something. With no upcoming event the card is a
+                recap, and the clock used to render "NaN" in every cell. */}
+            {event && (
+              <div className="cd-grid">
+                <div className="cd-cell"><b>{pad(cd.days)}</b><span>Days</span></div>
+                <div className="cd-cell"><b>{pad(cd.hrs)}</b><span>Hrs</span></div>
+                <div className="cd-cell"><b>{pad(cd.min)}</b><span>Min</span></div>
+                <div className="cd-cell"><b>{pad(cd.sec)}</b><span>Sec</span></div>
+              </div>
+            )}
             <div className="countdown-foot">
               <span>
                 {d
