@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" width="600" height="800">
+<defs>
+    <linearGradient id="beam0" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffb489" stop-opacity=".95"/>
+      <stop offset=".45" stop-color="#ff5a1f" stop-opacity=".38"/>
+      <stop offset="1" stop-color="#ff5a1f" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="beam1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffb489" stop-opacity=".95"/>
+      <stop offset=".45" stop-color="#ff5a1f" stop-opacity=".38"/>
+      <stop offset="1" stop-color="#ff5a1f" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="beam2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffb489" stop-opacity=".95"/>
+      <stop offset=".45" stop-color="#ff5a1f" stop-opacity=".38"/>
+      <stop offset="1" stop-color="#ff5a1f" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="beam3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffb489" stop-opacity=".95"/>
+      <stop offset=".45" stop-color="#ff5a1f" stop-opacity=".38"/>
+      <stop offset="1" stop-color="#ff5a1f" stop-opacity="0"/>
+    </linearGradient>
+  <radialGradient id="hot" cx="0.670" cy="0.119" r=".75">
+    <stop offset="0" stop-color="#ff8f52" stop-opacity=".55"/>
+    <stop offset=".45" stop-color="#7a2a10" stop-opacity=".22"/>
+    <stop offset="1" stop-color="#0a0a0b" stop-opacity="0"/>
+  </radialGradient>
+  <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#0a0a0b" stop-opacity="0"/>
+    <stop offset="1" stop-color="#000" stop-opacity=".92"/>
+  </linearGradient>
+  <filter id="smoke" x="-10%" y="-10%" width="120%" height="120%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.0022 0.006" numOctaves="4" seed="925"/>
+    <feColorMatrix type="matrix" values="0 0 0 0 .55  0 0 0 0 .26  0 0 0 0 .12  0 0 0 .55 0"/>
+  </filter>
+  <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2"/>
+    <feColorMatrix type="saturate" values="0"/></filter>
+</defs>
+<rect width="600" height="800" fill="#0a0a0b"/>
+<rect width="600" height="800" fill="url(#hot)"/>
+<rect width="600" height="800" filter="url(#smoke)" opacity="0.60"/>
+<g transform="rotate(-2.4 95 0)">
+      <rect x="83" y="-200" width="25" height="1280"
+            fill="url(#beam0)" opacity="0.63"/></g><g transform="rotate(-0.1 218 0)">
+      <rect x="183" y="-200" width="71" height="1280"
+            fill="url(#beam1)" opacity="0.24"/></g><g transform="rotate(-15.5 440 0)">
+      <rect x="415" y="-200" width="51" height="1280"
+            fill="url(#beam2)" opacity="0.38"/></g><g transform="rotate(-4.7 234 0)">
+      <rect x="202" y="-200" width="64" height="1280"
+            fill="url(#beam3)" opacity="0.49"/></g>
+<circle cx="535" cy="501" r="4.9" fill="#ff7a42" opacity="0.07"/><circle cx="600" cy="365" r="12.0" fill="#ff7a42" opacity="0.13"/><circle cx="244" cy="714" r="6.3" fill="#ff7a42" opacity="0.23"/><circle cx="270" cy="482" r="15.4" fill="#ff7a42" opacity="0.23"/><circle cx="532" cy="449" r="11.0" fill="#ff7a42" opacity="0.17"/><circle cx="417" cy="655" r="12.1" fill="#ff7a42" opacity="0.20"/><circle cx="466" cy="657" r="13.2" fill="#ff7a42" opacity="0.19"/><circle cx="421" cy="307" r="10.1" fill="#ff7a42" opacity="0.15"/><circle cx="510" cy="527" r="5.7" fill="#ff7a42" opacity="0.21"/><circle cx="385" cy="343" r="12.4" fill="#ff7a42" opacity="0.16"/><circle cx="424" cy="587" r="4.2" fill="#ff7a42" opacity="0.11"/><circle cx="95" cy="731" r="15.1" fill="#ff7a42" opacity="0.13"/><circle cx="206" cy="649" r="12.8" fill="#ff7a42" opacity="0.16"/><circle cx="435" cy="780" r="13.4" fill="#ff7a42" opacity="0.09"/><circle cx="468" cy="453" r="10.2" fill="#ff7a42" opacity="0.12"/><circle cx="29" cy="431" r="13.9" fill="#ff7a42" opacity="0.17"/><circle cx="446" cy="769" r="9.4" fill="#ff7a42" opacity="0.13"/><circle cx="322" cy="323" r="2.6" fill="#ff7a42" opacity="0.19"/><circle cx="258" cy="470" r="6.0" fill="#ff7a42" opacity="0.21"/><circle cx="503" cy="637" r="12.8" fill="#ff7a42" opacity="0.20"/><circle cx="183" cy="781" r="13.0" fill="#ff7a42" opacity="0.24"/><circle cx="260" cy="390" r="14.4" fill="#ff7a42" opacity="0.19"/><circle cx="597" cy="462" r="10.6" fill="#ff7a42" opacity="0.13"/><circle cx="175" cy="549" r="10.0" fill="#ff7a42" opacity="0.12"/><circle cx="130" cy="410" r="9.3" fill="#ff7a42" opacity="0.25"/><circle cx="359" cy="316" r="5.5" fill="#ff7a42" opacity="0.21"/>
+<rect width="600" height="800" fill="url(#floor)"/>
+<rect width="600" height="800" filter="url(#grain)" opacity=".07"/>
+</svg>

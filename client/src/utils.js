@@ -1,0 +1,29 @@
+export const pad = n => String(n).padStart(2, '0');
+
+/* Event times are stored as the venue's wall clock in UTC, so they are always
+   formatted in UTC. Without this a visitor abroad sees the doors open at 19:00. */
+export const fmtDate = (d, opts) =>
+  new Date(d).toLocaleDateString('en-GB', { timeZone: 'UTC', ...opts });
+export const fmtTime = d => {
+  const x = new Date(d);
+  return pad(x.getUTCHours()) + ':' + pad(x.getUTCMinutes());
+};
+export const dayNum = d => pad(new Date(d).getUTCDate());
+export const money = n => '$' + (Math.round(n * 100) / 100).toFixed(n % 1 ? 2 : 0);
+export const REDUCED = typeof matchMedia !== 'undefined'
+  && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+export const tiersFor = e => {
+  const base = e.from || 8;
+  return [
+    { n:'General admission', d:'Standing, both floors',            p:base },
+    { n:'Early access',      d:'In from 22:00 + free cloakroom',   p:Math.round(base * 1.45) },
+    { n:'Booth table',       d:'Seats four, bottle included',        p:Math.round(base * 6) }
+  ];
+};
+
+export const nextEvent = events => {
+  const now = Date.now();
+  return events.filter(e => new Date(e.date).getTime() > now && e.sold < 100)
+               .sort((a, b) => new Date(a.date) - new Date(b.date))[0] || events[0] || null;
+};

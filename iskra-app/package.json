@@ -1,0 +1,19 @@
+{
+  "name": "iskra-app",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/web",
+    "apps/api"
+  ],
+  "scripts": {
+    "dev": "concurrently -n web,api -c cyan,magenta \"npm run dev --workspace @iskra/web\" \"npm run dev --workspace @iskra/api\"",
+    "build": "npm run build --workspace @iskra/web && npm run build --workspace @iskra/api",
+    "lint": "npm run lint --workspace @iskra/web && npm run lint --workspace @iskra/api",
+    "typecheck": "npm run typecheck --workspace @iskra/web && npm run typecheck --workspace @iskra/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0"
+  }
+}
+

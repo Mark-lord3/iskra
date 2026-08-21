@@ -1,0 +1,40 @@
+name: iskra
+
+# ISKRA runs as a single container and is published by the Caddy that already
+# serves orvadora.com on this box. That Caddy reaches it over the shared
+# "orvadora_app" network, so nothing here binds ports 80/443.
+#
+# On a dedicated server instead, use Caddyfile.standalone and give this service
+# its own caddy sidecar with ports 80/443.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: iskra-promo:latest
+    container_name: iskra-app
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ./server/.env          # supplies MONGODB_URI
+    environment:
+      NODE_ENV: production
+      PORT: "4310"
+      CLIENT_ORIGIN: https://iskra.orvadora.com
+    expose:
+      - "4310"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:4310/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - orvadora
+
+networks:
+  # Created by the orvadora stack; ISKRA only joins it.
+  orvadora:
+    name: orvadora_app
+    external: true

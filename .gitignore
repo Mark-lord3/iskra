@@ -1,0 +1,9 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+*.log
+*.tsbuildinfo
+.DS_Store
+wetransfer_project-iskra_2026-08-20_0225/

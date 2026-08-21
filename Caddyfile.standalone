@@ -1,0 +1,21 @@
+# Standalone reverse proxy — only needed if ISKRA ever moves to its own box.
+#
+# On the current VPS this file is NOT used: orvadora.com already runs a Caddy
+# that owns ports 80/443, and ISKRA is proxied by that one instead. See the
+# "iskra.orvadora.com" block appended to /root/home/orvadora/Caddyfile.
+
+iskra.orvadora.com {
+	encode zstd gzip
+
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+	header /index.html Cache-Control "no-cache"
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+
+	reverse_proxy app:4310
+}

@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+.git
+.gitignore
+*.log
+.DS_Store
+reference-static-site.html
+README.md
+deploy.sh
+Caddyfile
+docker-compose.yml
