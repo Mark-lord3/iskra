@@ -1,38 +1,113 @@
-import { useCallback, useEffect, useState } from 'react';
-import SparkRush from './SparkRush.jsx';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import SparkRush, { ROUND } from './SparkRush.jsx';
 import Leaderboard from './Leaderboard.jsx';
+import MeltText from './MeltText.jsx';
 import { api, savedPlayer, savePlayer, clearPlayer } from '../api.js';
 import { useToast } from './Toasts.jsx';
+import { useI18n } from '../i18n.jsx';
 import { pad } from '../utils.js';
 
-const PRIZES = [
-  { rank: 'First place',   head: '10 dollar ticket', text: 'Any single night this season, any tier. Transferable once.' },
-  { rank: 'Second to fifth', head: 'Half price',     text: 'Fifty percent off up to two tickets to the night you pick.' },
-  { rank: 'Everyone else', head: 'Ten percent off',  text: 'For turning up and playing. One code per sign-up.' }
-];
+const NAME_MESSAGE = {
+  NAME_BLOCKED: 'arcade.nameBlocked',
+  NAME_LENGTH:  'arcade.nameLength',
+  NAME_LETTERS: 'arcade.nameLetters'
+};
+
+const newRoundId = () =>
+  (crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
+/** Digits that roll up to their value, used for the score and credit readouts. */
+function Odometer({ value, className = '' }) {
+  const [shown, setShown] = useState(value);
+  const raf = useRef(0);
+  useEffect(() => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { setShown(value); return; }
+    const from = shown, delta = value - from, t0 = performance.now(), dur = 700;
+    const step = now => {
+      const k = Math.min(1, (now - t0) / dur);
+      setShown(Math.round(from + delta * (1 - Math.pow(1 - k, 3))));
+      if (k < 1) raf.current = requestAnimationFrame(step);
+    };
+    raf.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf.current);
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <b className={className}>{shown.toLocaleString()}</b>;
+}
+
+function ContestWindow({contest,t}){
+  const [now,setNow]=useState(Date.now());
+  useEffect(()=>{const id=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(id);},[]);
+  if(!contest)return <div className="arcade-window closed"><span>{t('arcade.noEvent')}</span></div>;
+  const left=Math.max(0,new Date(contest.closesAt).getTime()-now);
+  const values=[Math.floor(left/86400000),Math.floor(left/3600000)%24,Math.floor(left/60000)%60,Math.floor(left/1000)%60];
+  return <div className={`arcade-window ${contest.status}`}>
+    <div><span>{contest.status==='open'?t('arcade.playingFor'):t('arcade.boardFor')}</span><b>{contest.eventTitle}</b></div>
+    {contest.status==='open'?<div className="arcade-countdown" aria-label={t('arcade.closesIn')}>
+      {values.map((value,index)=><span key={index}><b>{String(value).padStart(2,'0')}</b><small>{['D','H','M','S'][index]}</small></span>)}
+    </div>:<div><span>{contest.status==='finalized'?t('arcade.finalized'):t('arcade.closed')}</span><b>{contest.participantCount}/{contest.minParticipants}</b></div>}
+    <div><span>{t('arcade.qualified')}</span><b>{contest.participantCount}/{contest.minParticipants}</b><small>{contest.entriesNeeded>0?t('arcade.needEntries',{count:contest.entriesNeeded}):t('arcade.thresholdMet')}</small></div>
+  </div>;
+}
 
 export default function Play({ onTickets, onReward }) {
   const toast = useToast();
-  const [player, setPlayer] = useState(savedPlayer);
-  const [screen, setScreen] = useState('loading');
-  const [board, setBoard] = useState([]);
-  const [me, setMe] = useState(null);
-  const [attempts, setAttempts] = useState(3);
-  const [result, setResult] = useState(null);
-  const [err, setErr] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [form, setForm] = useState({ handle: '', email: '', consent: false });
+  const { t } = useI18n();
+
+  const [player, setPlayer]   = useState(savedPlayer);
+  const [accountLinked, setAccountLinked] = useState(false);
+  const [screen, setScreen]   = useState('loading');   // loading|signup|ready|playing|submitting|over|spent
+  const [board, setBoard]     = useState([]);
+  const [me, setMe]           = useState(null);
+  const [boardStatus, setBoardStatus] = useState('loading');
+  const [updatedAt, setUpdatedAt]     = useState(null);
+  const [contest,setContest] = useState(null);
+  const [attempts, setAttempts] = useState(0);
+  const [result, setResult]   = useState(null);
+  const [err, setErr]         = useState('');
+  const [busy, setBusy]       = useState(false);
+  const [paused, setPaused]   = useState(false);
+  const [muted, setMuted]     = useState(false);
+  const [online, setOnline]   = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
+  const [form, setForm]       = useState({ handle: '', email: '', consent: false });
+  const roundId = useRef(null);
+
+  const reducedMotion = useMemo(
+    () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches, []);
+
+  useEffect(() => {
+    const on = () => setOnline(true), off = () => setOnline(false);
+    addEventListener('online', on); addEventListener('offline', off);
+    return () => { removeEventListener('online', on); removeEventListener('offline', off); };
+  }, []);
 
   const refreshBoard = useCallback(async id => {
     try {
-      const { board, me } = await api.leaderboard(id);
-      setBoard(board); setMe(me);
-    } catch { /* keep the last known board */ }
+      const data = await api.leaderboard(id);
+      setBoard(data.board);setMe(data.me);setUpdatedAt(data.updatedAt);setContest(data.contest);
+      setBoardStatus('ready');
+    } catch {
+      setBoardStatus(s => (s === 'ready' ? 'ready' : 'error'));
+    }
   }, []);
 
+  // Boot: real board first, then re-sync the stored player against the server.
   useEffect(() => {
     let alive = true;
     (async () => {
+      // Account identity is authoritative. This also replaces a guest player
+      // left in localStorage by somebody who used the device earlier.
+      try {
+        const account = await api.accountMe();
+        const linked = await api.accountArcade(account.csrfToken);
+        if (!alive) return;
+        savePlayer(linked); setPlayer(linked); setAccountLinked(true);
+        setAttempts(linked.attemptsLeft);setContest(linked.contest);
+        if (linked.reward) onReward?.(linked.reward.code);
+        await refreshBoard(linked.id);
+        setScreen(linked.contest?.status==='open'?(linked.attemptsLeft>0?'ready':'spent'):'closed');
+        return;
+      } catch { /* No account session: continue with the guest identity. */ }
+
       const p = savedPlayer();
       await refreshBoard(p?.id);
       if (!alive) return;
@@ -40,9 +115,9 @@ export default function Play({ onTickets, onReward }) {
       try {
         const status = await api.playerStatus(p.id);
         if (!alive) return;
-        setAttempts(status.attemptsLeft);
-        if (status.reward) onReward(status.reward.code);
-        setScreen(status.attemptsLeft > 0 ? 'start' : 'spent');
+        setAttempts(status.attemptsLeft);setContest(status.contest);
+        if (status.reward) onReward?.(status.reward.code);
+        setScreen(status.contest?.status==='open'?(status.attemptsLeft>0?'ready':'spent'):'closed');
       } catch {
         clearPlayer(); setPlayer(null); setScreen('signup');
       }
@@ -50,173 +125,254 @@ export default function Play({ onTickets, onReward }) {
     return () => { alive = false; };
   }, [refreshBoard, onReward]);
 
-  // Keep the board fresh while somebody is looking at it, without polling
-  // in the background when the tab is hidden.
+  // Keep the board live while somebody is looking at it, never while playing
+  // and never in a hidden tab.
   useEffect(() => {
     if (screen === 'playing') return;
     const id = setInterval(() => {
-      if (!document.hidden) refreshBoard(savedPlayer()?.id);
-    }, 30000);
+      if (!document.hidden && navigator.onLine) refreshBoard(savedPlayer()?.id);
+    }, 25000);
     return () => clearInterval(id);
   }, [screen, refreshBoard]);
 
   const signup = async () => {
     setErr(''); setBusy(true);
     try {
-      const p = await api.signup({ handle: form.handle.trim(), email: form.email.trim(), consent: form.consent });
-      savePlayer(p); setPlayer(p); setAttempts(p.attemptsLeft);
-      if (p.reward) onReward(p.reward.code);
+      const p = await api.signup({
+        handle: form.handle.trim(), email: form.email.trim(), consent: form.consent
+      });
+      savePlayer(p);setPlayer(p);setAttempts(p.attemptsLeft);setContest(p.contest);
+      if (p.reward) onReward?.(p.reward.code);
       await refreshBoard(p.id);
-      toast(`Welcome, <b>${p.handle}</b>. ${p.attemptsLeft} attempts loaded.`, '✦');
-      setScreen(p.attemptsLeft > 0 ? 'start' : 'spent');
-    } catch (e) { setErr(e.message); }
-    finally { setBusy(false); }
+      setScreen(p.contest?.status==='open'?(p.attemptsLeft>0?'ready':'spent'):'closed');
+    } catch (e) {
+      // The server returns a code; the wording is chosen here, per language.
+      const key = NAME_MESSAGE[e.code];
+      setErr(key ? t(key) : e.message);
+    } finally { setBusy(false); }
+  };
+
+  const start = () => {
+    if(contest?.status!=='open'){toast(t('arcade.closed'),'!');return;}
+    roundId.current = newRoundId();
+    setPaused(false);
+    setScreen('playing');
   };
 
   const finish = useCallback(async payload => {
     setScreen('submitting');
     try {
-      const r = await api.submitScore({ playerId: player.id, token: player.token, ...payload });
-      setResult(r); setAttempts(r.attemptsLeft);
-      onReward(r.reward.code);
+      const r = await api.submitScore({
+        playerId: player.id, token: player.token, roundId: roundId.current, ...payload
+      });
+      setResult({ ...r, accuracy: payload.accuracy, hits: payload.hits });
+      setAttempts(r.attemptsLeft);
+      if(r.reward?.code)onReward?.(r.reward.code);
+      if(r.contest)setContest(r.contest);
       await refreshBoard(player.id);
-      if (r.rank <= 5) toast(`Rank ${r.rank}. You are in the prize zone.`, '✦');
+      if(r.rank<=5)toast(t('arcade.provisional',{rank:r.rank}),'★');
       setScreen('over');
     } catch (e) {
       toast(e.message, '!');
-      setScreen(attempts > 0 ? 'start' : 'spent');
+      setScreen(attempts > 0 ? 'ready' : 'spent');
     }
-  }, [player, refreshBoard, toast, onReward, attempts]);
+  }, [player, refreshBoard, toast, onReward, attempts, t]);
 
   const signOut = () => {
-    clearPlayer(); setPlayer(null); setScreen('signup'); setMe(null);
-    toast('Signed out on this device', '✦');
+    clearPlayer(); setPlayer(null); setMe(null); setScreen('signup');
   };
 
+  const tierLabel = result?.reward?.head
+    || (me?.tier==='top1'?t('play.firstHead'):me?.tier==='top2'?'50% OFF':me?.tier==='top5'?'40% OFF':me?.tier==='played'?'10% OFF':null);
+
+  // Before sign-up the reader is being offered three credits, not shown zero.
+  const shownAttempts = player ? attempts : 3;
+  const topThree = board.slice(0, 3);
+  const playing = screen === 'playing';
+
   return (
-    <section className="section play" id="play">
-      <div className="wrap">
-        <div className="sec-head sec-bar">
-          <div>
-            <h2 className="h-lg rv">Play for tickets</h2>
-            <p className="lead rv">
-              Sixty seconds of Spark Rush. Catch the embers before they burn out, keep the
-              multiplier alive, and the five highest scores of the season walk in cheap.
-            </p>
+    <section className="section arcade" id="play">
+      {/* ---------- entrance ---------- */}
+      <div className="wrap arcade-entrance">
+        <div className="arcade-title-block">
+          <p className="arcade-kicker mono">{t('play.eyebrow')}</p>
+          <MeltText as="h2" className="arcade-title h-xl">{t('arcade.enter')}</MeltText>
+          <p className="lead arcade-sub">{t('arcade.subtitle')}</p>
+          <ContestWindow contest={contest} t={t}/>
+
+          <div className="arcade-actions">
+            {screen === 'signup' ? (
+              <a className="btn btn-primary btn-lg" href="#arcade-signup">{t('arcade.insert')}</a>
+            ) : (
+              <button className="btn btn-primary btn-lg" disabled={contest?.status!=='open'||attempts<=0||playing} onClick={start}>
+                {t('arcade.start')}
+              </button>
+            )}
+            <div className="arcade-credits">
+              <span className="mono">{t('arcade.credits')}</span>
+              <span className="credit-dots" aria-hidden="true">
+                {[0,1,2].map(i => <i key={i} className={i < shownAttempts ? 'on' : ''} />)}
+              </span>
+              <b className="mono">{shownAttempts}/3 {t('arcade.today')}</b>
+            </div>
           </div>
         </div>
 
-        <div className="prizes rv">
-          {PRIZES.map(p => (
-            <div className="prize" key={p.rank}>
-              <span>{p.rank}</span><b>{p.head}</b><p>{p.text}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="play-grid">
-          <div>
-            <div className="stage rv">
-              <SparkRush active={screen === 'playing'} onFinish={finish} />
-
-              <div className={'overlay' + (screen === 'playing' ? ' hidden' : '')}>
-                <div className="overlay-in">
-
-                  {screen === 'loading' && <p className="mono">Loading the board</p>}
-                  {screen === 'submitting' && <p className="mono">Saving your score</p>}
-
-                  {screen === 'signup' && (
-                    <>
-                      <h3>Play for<br />cheap tickets</h3>
-                      <p>Sign up, take your three shots, land in the top five.</p>
-                      <label className="field"><span>Display name</span>
-                        <input value={form.handle} maxLength={18} autoComplete="nickname"
-                               placeholder="How the board should know you"
-                               onChange={e => setForm(f => ({ ...f, handle: e.target.value }))} />
-                      </label>
-                      <label className="field"><span>Email</span>
-                        <input type="email" value={form.email} autoComplete="email" placeholder="you@email.com"
-                               onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                               onKeyDown={e => e.key === 'Enter' && signup()} />
-                      </label>
-                      <label className="checkline">
-                        <input type="checkbox" checked={form.consent}
-                               onChange={e => setForm(f => ({ ...f, consent: e.target.checked }))} />
-                        <span>I am 18 or over and I want lineup news and my prize code by email.</span>
-                      </label>
-                      <div className="err">{err}</div>
-                      <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy} onClick={signup}>
-                        {busy ? 'Checking' : 'Enter the leaderboard'}
-                      </button>
-                    </>
-                  )}
-
-                  {screen === 'start' && (
-                    <>
-                      <h3>Spark Rush</h3>
-                      <p>Catch the orange embers before they burn out. The pale ones pay triple,
-                         the dark ones cost you. Chain hits to build the multiplier.</p>
-                      <p className="mono" style={{ fontSize: 11, marginTop: 16, color: 'var(--dim)' }}>
-                        {player?.handle}, {attempts} attempt{attempts === 1 ? '' : 's'} left today
-                      </p>
-                      <button className="btn btn-primary" style={{ width: '100%', marginTop: 20 }}
-                              onClick={() => setScreen('playing')}>Start round</button>
-                    </>
-                  )}
-
-                  {screen === 'spent' && (
-                    <>
-                      <h3>Out of attempts</h3>
-                      <p>You have used all three shots today, {player?.handle}. The board resets at
-                         midnight, so come back and take another run at it.</p>
-                      <a className="btn btn-ghost" style={{ marginTop: 20 }} href="/offers">
-                        See other offers
-                      </a>
-                    </>
-                  )}
-
-                  {screen === 'over' && result && (
-                    <>
-                      <div className="hud-item">Final score</div>
-                      <div className="score-big">{result.score.toLocaleString()}</div>
-                      <div className="rank-line">
-                        Rank {pad(result.rank)}, best {result.bestScore.toLocaleString()}
-                      </div>
-                      <div className="reward">
-                        <b>{result.reward.head}</b>
-                        <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>{result.reward.sub}</p>
-                        <button className="code" style={{ width: '100%', justifyContent: 'space-between' }}
-                                onClick={() => { navigator.clipboard?.writeText(result.reward.code);
-                                                 toast(`Code <b>${result.reward.code}</b> copied`, '✦'); }}>
-                          <span>{result.reward.code}</span><small>Copy</small>
-                        </button>
-                      </div>
-                      <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
-                        {attempts > 0 && (
-                          <button className="btn btn-ghost" style={{ flex: 1 }}
-                                  onClick={() => setScreen('start')}>Again ({attempts})</button>
-                        )}
-                        <button className="btn btn-primary" style={{ flex: 1 }}
-                                onClick={() => onTickets('next')}>Use my code</button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="gamehint">
-              <span>Orange, 100 points</span>
-              <span>Pale, triple</span>
-              <span>Dark, penalty</span>
-              <span>Missing resets the multiplier</span>
-            </div>
+        <div className="arcade-readout">
+          <div className="readout-cell">
+            <span className="mono">{t('arcade.reward')}</span>
+            <b>{tierLabel || t('arcade.noReward')}</b>
           </div>
-
-          <Leaderboard board={board} me={me} attemptsLeft={attempts}
-                       hasPlayer={!!player} onReset={signOut} />
+          <div className="readout-cell num">
+            <span className="mono">{t('play.score')}</span>
+            <Odometer value={me?.score || 0} />
+          </div>
+          <div className="readout-cell num">
+            <span className="mono">{t('arcade.rank')}</span>
+            <b>{me?.rank ? pad(me.rank) : '--'}</b>
+          </div>
+          <ol className="readout-top" aria-label={t('arcade.liveBoard')}>
+            {topThree.map(row => (
+              <li key={row.id}><span className="mono">{pad(row.rank)}</span>
+                <em>{row.handle}</em><b>{row.score.toLocaleString()}</b></li>
+            ))}
+            {boardStatus === 'ready' && topThree.length === 0 && (
+              <li className="readout-empty">{t('arcade.boardEmpty')}</li>
+            )}
+          </ol>
         </div>
       </div>
+
+      {/* ---------- arena ---------- */}
+      <div className="wrap arcade-stage-grid">
+        <div className="arena-col">
+          <div className={'stage' + (playing ? ' is-live' : '')}>
+            <SparkRush
+              active={playing}
+              paused={paused}
+              muted={muted}
+              reducedMotion={reducedMotion}
+              onFinish={finish}
+              onTogglePause={() => setPaused(p => !p)}
+              onToggleSound={() => setMuted(m => !m)}
+              labels={{
+                score: t('play.score'), multiplier: t('play.multiplier'), time: t('play.time'),
+                pause: t('arcade.pause'), resume: t('arcade.resume'), paused: t('arcade.paused'),
+                soundOn: t('arcade.soundOn'), soundOff: t('arcade.soundOff')
+              }}
+            />
+
+            <div className={'overlay' + (playing ? ' hidden' : '')}>
+              <div className="overlay-in">
+                {screen === 'loading' && <p className="mono">{t('play.loading')}</p>}
+                {screen === 'submitting' && <p className="mono">{t('play.saving')}</p>}
+
+                {screen === 'signup' && (
+                  <form id="arcade-signup" onSubmit={e => { e.preventDefault(); signup(); }}>
+                    <h3>{t('play.cheap')}</h3>
+                    <p>{t('play.signupCopy')}</p>
+                    <label className="field"><span>{t('play.name')}</span>
+                      <input value={form.handle} maxLength={18} autoComplete="nickname" required
+                             placeholder={t('play.namePlaceholder')}
+                             onChange={e => setForm(f => ({ ...f, handle: e.target.value }))} />
+                    </label>
+                    <label className="field"><span>{t('contact.email')}</span>
+                      <input type="email" value={form.email} autoComplete="email" required
+                             placeholder="you@email.com"
+                             onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+                    </label>
+                    <label className="checkline">
+                      <input type="checkbox" checked={form.consent} required
+                             onChange={e => setForm(f => ({ ...f, consent: e.target.checked }))} />
+                      <span>{t('play.consent')}</span>
+                    </label>
+                    <div className="err" role="alert">{err}</div>
+                    <button className="btn btn-primary" type="submit" style={{ width: '100%' }} disabled={busy}>
+                      {busy ? t('arcade.checking') : t('play.enter')}
+                    </button>
+                  </form>
+                )}
+
+                {screen === 'ready' && (
+                  <>
+                    <h3>{t('arcade.attractHint')}</h3>
+                    <p>{t('play.instructions')}</p>
+                    <p className="mono arcade-credit-line">
+                      {player?.handle} · {attempts}/3 {t('arcade.today')}
+                    </p>
+                    <button className="btn btn-primary" style={{ width: '100%' }} onClick={start}>
+                      {t('arcade.start')}
+                    </button>
+                  </>
+                )}
+
+                {screen === 'spent' && (
+                  <>
+                    <h3>{t('play.spent')}</h3>
+                    <p>{t('play.spentCopy')}</p>
+                    <button className="btn btn-ghost" style={{ marginTop: 18 }} onClick={() => onTickets?.('next')}>
+                      {t('play.use')}
+                    </button>
+                  </>
+                )}
+
+                {screen==='closed'&&<>
+                  <h3>{contest?.status==='finalized'?t('arcade.finalized'):t('arcade.closed')}</h3>
+                  <p>{contest?.status==='closed_pending'?t('arcade.awaitingMinimum',{count:contest.entriesNeeded}):t('arcade.closedCopy')}</p>
+                  {player?.reward&&<button className="btn btn-primary" onClick={()=>onTickets?.(contest?.eventSlug)}>{t('play.use')}</button>}
+                </>}
+
+                {screen === 'over' && result && (
+                  <>
+                    <div className="hud-item"><span>{t('play.final')}</span></div>
+                    <div className="score-big">{result.score.toLocaleString()}</div>
+                    <div className="rank-line">
+                      {t('arcade.rank')} {pad(result.rank)} · {t('arcade.targets')} {result.hits} ·
+                      {' '}{t('arcade.accuracy')} {result.accuracy}%
+                    </div>
+                    {result.score >= result.bestScore && (
+                      <p className="new-best mono">{t('arcade.newBest')}</p>
+                    )}
+                    <div className="reward">
+                      <b>{result.reward.head}</b>
+                      <p>{result.reward.sub}</p>
+                      {result.reward.code&&<button className="code" onClick={() => {
+                        navigator.clipboard?.writeText(result.reward.code);
+                        toast(result.reward.code, '★');
+                      }}><span>{result.reward.code}</span><small>{t('common.copy')}</small></button>}
+                    </div>
+                    <div className="over-actions">
+                      {attempts > 0 && (
+                        <button className="btn btn-ghost" onClick={start}>
+                          {t('play.again')} ({attempts})
+                        </button>
+                      )}
+                      {!result.reward.pending&&<button className="btn btn-primary" onClick={() => onTickets?.(contest?.eventSlug||'next')}>{t('play.use')}</button>}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <p className="gamehint mono">
+            <span>{t('play.orange')}</span><span>{t('play.pale')}</span>
+            <span>{t('play.dark')}</span><span>{t('play.miss')}</span>
+          </p>
+        </div>
+
+        <Leaderboard
+          board={board} me={me} status={boardStatus} online={online}
+          updatedAt={updatedAt} onRetry={() => { setBoardStatus('loading'); refreshBoard(savedPlayer()?.id); }}
+        />
+      </div>
+
+      {player && !accountLinked && (
+        <div className="wrap arcade-foot">
+          <p className="mono">{t('play.season')}</p>
+          <button className="linklike mono" onClick={signOut}>{t('play.signOut')}</button>
+        </div>
+      )}
     </section>
   );
 }

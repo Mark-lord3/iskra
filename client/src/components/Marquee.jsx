@@ -1,13 +1,17 @@
-const WORDS = ['Techno', 'House', 'Live machines', 'Funktion-One', 'Doors 23:00',
-               'No phones on the floor', 'Open till six'];
+import {useI18n} from '../i18n.jsx';
 
 export default function Marquee() {
-  const run = [...WORDS, ...WORDS];
+  const {t}=useI18n();
+  const WORDS = ['Techno','House',t('marquee.machines'),'Funktion-One',t('marquee.doors'),t('marquee.phones'),t('marquee.six')];
   return (
     <div className="marquee" aria-hidden="true">
       <div className="marquee-track">
-        {run.map((w, i) => (
-          <span key={i} className={i % 3 === 1 ? 'hot' : ''}>{w}</span>
+        {[0, 1].map(group => (
+          <div className="marquee-run" key={group}>
+            {WORDS.map((word, index) => (
+              <span key={`${group}-${index}`} className={index % 3 === 1 ? 'hot' : ''}>{word}</span>
+            ))}
+          </div>
         ))}
       </div>
     </div>

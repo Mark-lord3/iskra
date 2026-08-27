@@ -19,6 +19,10 @@ COPY server/package*.json ./server/
 RUN npm ci --omit=dev --prefix server && npm cache clean --force
 
 COPY server/src ./server/src
+COPY shared ./shared
+
+# Catch missing runtime-only source imports while the image is still building.
+RUN node --input-type=module -e "import('./server/src/routes/players.js')"
 
 # The Express app serves ../../client/dist relative to server/src,
 # so the built assets keep the same layout they have in the repo.

@@ -7,6 +7,9 @@ import { Event } from "../models/Event";
 import { Media } from "../models/Media";
 import { mediaStorageService } from "../services/media-storage";
 import { resolveUploadPath } from "../utils/path";
+import { Types } from "mongoose";
+import { requirePaidEventAccess } from "../lib/event-access";
+import { requireDatingApp } from "../lib/feature-config";
 
 const storage = multer.memoryStorage();
 
@@ -30,6 +33,7 @@ const uploadSchema = z.object({
 });
 
 export async function uploadEventImage(req: Request, res: Response) {
+  await requireDatingApp();
   const file = req.file;
   const input = uploadSchema.parse(req.body);
 
@@ -41,6 +45,10 @@ export async function uploadEventImage(req: Request, res: Response) {
   if (!event || ["ending", "ended", "cleaned"].includes(event.status)) {
     return res.status(400).json({ message: "This event no longer accepts uploads." });
   }
+  if (!Types.ObjectId.isValid(input.venueId) || String(event.venueId) !== input.venueId) {
+    return res.status(400).json({ message: "Venue does not match this event." });
+  }
+  await requirePaidEventAccess(req.auth!.userId, event._id);
 
   await mediaStorageService.assertWithinBudget();
 
@@ -55,7 +63,7 @@ export async function uploadEventImage(req: Request, res: Response) {
     mimeType: file.mimetype
   });
 
-  res.status(201).json(media);
+  res.status(201).json({ ...media.toObject(), url: `${req.protocol}://${req.get("host")}/api/v1/media/${media._id}` });
 }
 
 export async function serveMedia(req: Request, res: Response) {
@@ -74,4 +82,3 @@ export async function serveMedia(req: Request, res: Response) {
   const file = await fs.readFile(resolveUploadPath(media.path));
   res.contentType(media.mimeType).send(file);
 }
-

@@ -1,141 +1,171 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 import Logo from '../components/Logo.jsx';
 import { useToast } from '../components/Toasts.jsx';
+import PokerAdminWorkspace from '../components/PokerAdminWorkspace.jsx';
 
-const defaultEvent = { title:'', slug:'', date:'', support:'', room:'Main Hall', tags:'techno', badges:'new', from:25, was:0, sold:0 };
-const defaultBanner = { title:'', text:'', cta:'Join the list', href:'/newsletter', placement:'home', active:true };
+const NAV=[['overview','01','Overview'],['events','02','Events'],['poker','03','Poker tournaments'],['tickets','04','Tickets & orders'],['promotions','05','Promotions'],['audience','06','Audience'],['inbox','07','Inbox'],['content','08','Content'],['dating','09','Dating event'],['door','10','Door operations'],['analytics','11','Analytics'],['settings','12','Settings']];
+const TITLES={overview:['Control room','What is happening across ISKRA right now.'],events:['Event operations','Build, publish and review every night.'],poker:['Poker tournaments','Build, legally approve, run and audit free ticket tournaments.'],tickets:['Tickets & orders','Find a guest, payment or admission record.'],promotions:['Promotions','Coordinate offers, codes and signup banners.'],audience:['Audience','Understand the people choosing to stay connected.'],inbox:['Inbox','Review and resolve incoming enquiries.'],content:['Content studio','Control public updates and event photography.'],dating:['Dating event','Open the social room and control King & Queen voting.'],door:['Door operations','Authorise devices without exposing the admin.'],analytics:['Analytics','Real visits, clicks and conversion signals.'],settings:['Settings','Workspace access and system boundaries.']};
+const defaultEvent={title:'',slug:'',date:'',support:'',room:'Main Hall',address:'',description:'',image:'',tags:'techno',badges:'new',from:25,was:0,sold:0,capacity:0,arcadeEnabled:true,arcadeMinParticipants:30,active:true};
+const defaultBanner={title:'',text:'',cta:'Join the list',href:'/newsletter',placement:'home',active:true};
+const defaultGallery={url:'',alt:'',order:0,active:true};
+const money=value=>new Intl.NumberFormat('en-CA',{style:'currency',currency:'CAD',maximumFractionDigits:0}).format(Number(value)||0);
+const dateTime=value=>value?new Date(value).toLocaleString([],{dateStyle:'medium',timeStyle:'short'}):'Not yet';
+const eventState=event=>!event.active?'draft':new Date(event.date)<new Date()?'completed':event.sold>=100?'sold out':'on sale';
+const Status=({children})=><em className={`admin-status ${String(children).replaceAll('_','-').replaceAll(' ','-')}`}>{String(children).replaceAll('_',' ')}</em>;
+const Empty=({title,copy})=><div className="admin-empty-state"><b>{title}</b><p>{copy}</p></div>;
 
-export default function AdminPage() {
-  const toast = useToast();
-  const [key, setKey] = useState(() => localStorage.getItem('iskra_admin_key') || 'iskra-local-admin');
-  const [data, setData] = useState(null);
-  const [eventForm, setEventForm] = useState(defaultEvent);
-  const [bannerForm, setBannerForm] = useState(defaultBanner);
-  const [busy, setBusy] = useState(false);
+export default function AdminPage(){
+  const toast=useToast();
+  const [creds,setCreds]=useState({email:'',password:''});
+  const [authError,setAuthError]=useState('');
+  const [signedIn,setSignedIn]=useState(false);
+  const [data,setData]=useState(null);
+  const [section,setSection]=useState(()=>location.hash.slice(1)||'overview');
+  const [busy,setBusy]=useState(false);
+  const [menuOpen,setMenuOpen]=useState(false);
+  const [query,setQuery]=useState('');
+  const [eventForm,setEventForm]=useState(defaultEvent);
+  const [bannerForm,setBannerForm]=useState(defaultBanner);
+  const [galleryForm,setGalleryForm]=useState(defaultGallery);
+  const [statusForm,setStatusForm]=useState({open:true,message:''});
+  const [datingForm,setDatingForm]=useState({enabled:false,competitionEnabled:false,message:'The ISKRA social room is currently closed.'});
+  const [devices,setDevices]=useState([]);
+  const [scanLog,setScanLog]=useState({items:[],pagination:{page:1,pages:1,total:0}});
+  const [orderLog,setOrderLog]=useState({items:[],pagination:{page:1,pages:1,total:0}});
+  const [deviceForm,setDeviceForm]=useState({label:'Front door',eventSlug:'',ttlMinutes:30,sessionDays:3});
+  const [inviteUrl,setInviteUrl]=useState('');
+  const [inviteQr,setInviteQr]=useState('');
 
-  const load = async () => {
+  const load=async()=>{
     setBusy(true);
-    try {
-      localStorage.setItem('iskra_admin_key', key);
-      setData(await api.adminSummary(key));
-    } catch (err) { toast(err.message, '!'); }
-    finally { setBusy(false); }
+    try{
+      const next=await api.adminSummary();
+      setData(next);setSignedIn(true);
+      setStatusForm(next.siteStatus||{open:true,message:''});
+      setDatingForm(next.datingApp||{enabled:false,competitionEnabled:false,message:'The ISKRA social room is currently closed.'});
+      api.adminScannerSessions().then(setDevices).catch(()=>setDevices([]));
+    }catch(error){
+      // 401 simply means "not signed in yet"; anything else is worth showing.
+      if(error.status===401){setData(null);setSignedIn(false);}
+      else toast(error.message,'!');
+    }finally{setBusy(false);}
   };
 
-  useEffect(() => { load(); }, []);
-
-  const updateEvent = e => setEventForm({ ...eventForm, [e.target.name]: e.target.value });
-  const updateBanner = e => setBannerForm({ ...bannerForm, [e.target.name]: e.target.value });
-
-  const saveEvent = async e => {
-    e.preventDefault();
-    await api.adminEvent(key, eventForm);
-    setEventForm(defaultEvent);
-    toast('Schedule saved.', 'OK');
-    load();
+  const signIn=async e=>{
+    e.preventDefault();setAuthError('');setBusy(true);
+    try{
+      await api.login(creds.email.trim(),creds.password);
+      setCreds({email:'',password:''});
+      await load();
+    }catch(error){
+      setAuthError(error.code==='LOCKED'?error.message:'Email or password is incorrect.');
+      setBusy(false);
+    }
   };
 
-  const saveBanner = async e => {
-    e.preventDefault();
-    await api.adminBanner(key, bannerForm);
-    setBannerForm(defaultBanner);
-    toast('Promotion banner saved.', 'OK');
-    load();
+  const signOut=async()=>{
+    try{ await api.logout(); }catch{ /* the cookie is cleared either way */ }
+    setData(null);setSignedIn(false);
   };
+  useEffect(()=>{load();},[]);
+  useEffect(()=>{const onHash=()=>setSection(location.hash.slice(1)||'overview');window.addEventListener('hashchange',onHash);return()=>window.removeEventListener('hashchange',onHash);},[]);
+  const go=id=>{location.hash=id;setSection(id);setMenuOpen(false);window.scrollTo({top:0,behavior:'smooth'});};
+  const act=async(work,success)=>{setBusy(true);try{await work();if(success)toast(success,'OK');await load();}catch(error){toast(error.message,'!');}finally{setBusy(false);}};
+  const changeScanPage=async page=>{try{setScanLog(await api.adminScannerLog(page));}catch(error){toast(error.message,'!');}};
+  const changeOrderPage=async page=>{try{setOrderLog(await api.adminOrders(page));}catch(error){toast(error.message,'!');}};
+  const q=query.trim().toLowerCase();
+  const includes=values=>!q||values.some(value=>String(value||'').toLowerCase().includes(q));
+  const tickets=useMemo(()=>(data?.tickets||[]).filter(row=>includes([row.reference,row.buyerName,row.buyerEmail,row.eventTitle,row.status])),[data,q]);
+  const orders=useMemo(()=>(orderLog.items||[]).filter(row=>includes([row.buyerName,row.email,row.eventSlug,row.paymentStatus,row.code])),[orderLog,q]);
+  const messages=useMemo(()=>(data?.messages||[]).filter(row=>includes([row.name,row.email,row.subject,row.category,row.message,row.status])),[data,q]);
 
-  const removeEvent = async slug => {
-    await api.adminDeleteEvent(key, slug);
-    toast('Schedule item removed.', 'OK');
-    load();
-  };
+  if(!data)return <main className="admin-login"><section className="admin-login-card">
+    <a href="/" className="logo"><Logo/> ISKRA</a>
+    <p className="admin-kicker">Restricted operations</p>
+    <h1>CONTROL<br/>ROOM</h1>
+    <p className="admin-login-copy">Administration is separate from door scanning. Sign in with your operations account.</p>
+    <form onSubmit={signIn}>
+      <label><span>Email</span>
+        <input type="email" name="email" value={creds.email} autoComplete="username" required
+               onChange={e=>setCreds({...creds,email:e.target.value})}/></label>
+      <label><span>Password</span>
+        <input type="password" name="password" value={creds.password} autoComplete="current-password" required
+               onChange={e=>setCreds({...creds,password:e.target.value})}/></label>
+      {authError&&<p className="admin-auth-error" role="alert">{authError}</p>}
+      <button className="btn btn-primary" disabled={busy}>{busy?'Signing in…':'Sign in'}</button>
+    </form>
+    <a className="admin-door-link" href="/staff/scan">Door staff scanner →</a>
+  </section></main>;
 
-  const markRead = async id => {
-    await api.adminMessage(key, id, 'read');
-    load();
-  };
+  const totals=data.totals||{};
+  const upcoming=(data.events||[]).filter(e=>e.active&&new Date(e.date)>=new Date()).sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const currentTitle=TITLES[section]||TITLES.overview;
+  const saveEvent=e=>{e.preventDefault();act(()=>api.adminEvent(eventForm),'Event saved.').then(()=>setEventForm(defaultEvent));};
+  const saveBanner=e=>{e.preventDefault();act(()=>api.adminBanner(bannerForm),'Promotion banner saved.').then(()=>setBannerForm(defaultBanner));};
+  const saveGallery=e=>{e.preventDefault();act(()=>api.adminGallery(galleryForm),'Gallery image added.').then(()=>setGalleryForm(defaultGallery));};
 
-  const totals = data?.totals || {};
-
-  return (
-    <main className="admin-page">
-      <header className="admin-top">
-        <a href="/" className="logo"><Logo />ISKRA admin</a>
-        <div className="admin-key">
-          <input value={key} onChange={e => setKey(e.target.value)} aria-label="Admin key" />
-          <button className="btn btn-sm btn-primary" onClick={load} disabled={busy}>{busy ? 'Loading' : 'Refresh'}</button>
-        </div>
-      </header>
-
-      <section className="admin-metrics">
-        {[
-          ['Visits', totals.visits || 0],
-          ['Clicks', totals.clicks || 0],
-          ['Promo signups', totals.subscribers || 0],
-          ['Messages', totals.messages || 0],
-          ['Orders', totals.orders || 0]
-        ].map(([label, value]) => (
-          <article key={label}><span>{label}</span><b>{value}</b></article>
-        ))}
-      </section>
-
-      <section className="admin-grid">
-        <form className="admin-panel" onSubmit={saveEvent}>
-          <h2>Post schedule</h2>
-          <input name="title" placeholder="Event title" value={eventForm.title} onChange={updateEvent} required />
-          <input name="slug" placeholder="event-slug" value={eventForm.slug} onChange={updateEvent} />
-          <input name="date" type="datetime-local" value={eventForm.date} onChange={updateEvent} required />
-          <input name="support" placeholder="Support / subtitle" value={eventForm.support} onChange={updateEvent} />
-          <input name="room" placeholder="Room" value={eventForm.room} onChange={updateEvent} />
-          <input name="tags" placeholder="tags comma separated" value={eventForm.tags} onChange={updateEvent} />
-          <div className="admin-inline">
-            <input name="from" type="number" min="0" value={eventForm.from} onChange={updateEvent} />
-            <input name="sold" type="number" min="0" max="100" value={eventForm.sold} onChange={updateEvent} />
-          </div>
-          <button className="btn btn-primary">Save schedule</button>
-        </form>
-
-        <form className="admin-panel" onSubmit={saveBanner}>
-          <h2>Add promotion banner</h2>
-          <input name="title" placeholder="Banner title" value={bannerForm.title} onChange={updateBanner} required />
-          <textarea name="text" placeholder="Offer copy" value={bannerForm.text} onChange={updateBanner} rows="4" />
-          <input name="cta" placeholder="Button text" value={bannerForm.cta} onChange={updateBanner} />
-          <input name="href" placeholder="/newsletter or /contact" value={bannerForm.href} onChange={updateBanner} />
-          <button className="btn btn-primary">Save banner</button>
-        </form>
-      </section>
-
-      <section className="admin-grid wide">
-        <div className="admin-panel">
-          <h2>Schedule manager</h2>
-          <div className="admin-list">
-            {(data?.events || []).map(event => (
-              <article key={event.slug}>
-                <div><b>{event.title}</b><span>{new Date(event.date).toLocaleString()} · {event.room}</span></div>
-                <button className="btn btn-sm btn-ghost" onClick={() => removeEvent(event.slug)}>Remove</button>
-              </article>
-            ))}
-          </div>
-        </div>
-        <div className="admin-panel">
-          <h2>Contact messages</h2>
-          <div className="admin-list messages">
-            {(data?.messages || []).map(message => (
-              <article key={message._id}>
-                <div><b>{message.name}</b><span>{message.email} · {message.subject}</span><p>{message.message}</p></div>
-                <button className="btn btn-sm btn-ghost" onClick={() => markRead(message._id)}>{message.status}</button>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="admin-panel">
-        <h2>Promotional letter signups</h2>
-        <div className="subscriber-list">
-          {(data?.subscribers || []).map(sub => <span key={sub._id}>{sub.email}</span>)}
-        </div>
-      </section>
-    </main>
-  );
+  return <main className="admin-app">
+    <aside className={`admin-sidebar ${menuOpen?'open':''}`}><div className="admin-brand"><a href="/" className="logo"><Logo/>ISKRA</a><span>Operations / v1</span></div><nav aria-label="Admin workspace">{NAV.map(([id,n,label])=><button key={id} className={section===id?'active':''} onClick={()=>go(id)}><small>{n}</small><span>{label}</span>{id==='inbox'&&totals.unreadMessages>0?<b>{totals.unreadMessages}</b>:null}</button>)}</nav><div className="admin-sidebar-foot"><span>System status</span><b><i/> Live & connected</b><a href="/">View public website ↗</a></div></aside>
+    {menuOpen&&<button className="admin-scrim" aria-label="Close menu" onClick={()=>setMenuOpen(false)}/>}
+    <div className="admin-workspace"><header className="admin-commandbar"><button className="admin-menu-button" onClick={()=>setMenuOpen(true)}>Menu</button><label className="admin-search"><span>⌕</span><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search guests, orders, messages…"/></label><button className="admin-refresh" onClick={()=>load()} disabled={busy}>{busy?'Syncing…':'Sync data'}</button></header>
+      <div className="admin-canvas"><header className="admin-pagehead"><div><p>ISKRA / {section.replaceAll('-',' ')}</p><h1>{currentTitle[0]}</h1><span>{currentTitle[1]}</span></div><div>{section==='events'&&<button className="btn btn-primary" onClick={()=>document.getElementById('event-editor')?.scrollIntoView({behavior:'smooth'})}>Create event</button>}{section==='door'&&<a className="btn btn-primary" href="/staff/scan">Open scanner</a>}</div></header>
+        {section==='overview'&&<Overview totals={totals} upcoming={upcoming} data={data} orderLog={orderLog} changeOrderPage={changeOrderPage} go={go}/>}
+        {section==='events'&&<EventsWorkspace data={data} form={eventForm} setForm={setEventForm} save={saveEvent} remove={slug=>window.confirm('Remove this event from the schedule? This cannot be undone.')&&act(()=>api.adminDeleteEvent(slug),'Event removed.')}/>}
+        {section==='poker'&&<PokerAdminWorkspace events={data.events||[]}/>}
+        {section==='tickets'&&<TicketsWorkspace tickets={tickets} orders={orders} orderPagination={orderLog.pagination} changeOrderPage={changeOrderPage} update={(ticket,status)=>{const warning=status==='cancelled'?'Cancel this ticket? It will be rejected at the door.':status==='reserved'?'Restore this cancelled ticket?':null;if(warning&&!window.confirm(warning))return;act(()=>status==='redeemed'?api.adminRedeemTicket(ticket.id):api.adminTicketStatus(ticket.id,status),status==='redeemed'?'Guest checked in.':'Ticket updated.');}}/>}
+        {section==='promotions'&&<PromotionsWorkspace data={data} form={bannerForm} setForm={setBannerForm} save={saveBanner}/>}
+        {section==='audience'&&<AudienceWorkspace data={data}/>}
+        {section==='inbox'&&<InboxWorkspace messages={messages} update={(id,status)=>act(()=>api.adminMessage(id,status),'Message updated.')}/>}
+        {section==='content'&&<ContentWorkspace data={data} statusForm={statusForm} setStatusForm={setStatusForm} saveStatus={e=>{e.preventDefault();act(()=>api.adminSiteStatus(statusForm),'Public status published.')}} galleryForm={galleryForm} setGalleryForm={setGalleryForm} saveGallery={saveGallery} remove={id=>window.confirm('Remove this image from the public gallery?')&&act(()=>api.adminDeleteGallery(id),'Image removed.')}/>}
+        {section==='dating'&&<DatingWorkspace form={datingForm} setForm={setDatingForm} save={e=>{e.preventDefault();act(()=>api.adminDatingApp(datingForm),'Dating event controls updated.')}}/>}
+        {section==='door'&&<DoorWorkspace events={data.events||[]} devices={devices} scanLog={scanLog} changeScanPage={changeScanPage} form={deviceForm} setForm={setDeviceForm} inviteUrl={inviteUrl} inviteQr={inviteQr} create={async()=>{try{const result=await api.adminScannerLink(deviceForm);setInviteUrl(result.url);setInviteQr(result.qrDataUrl||'');await navigator.clipboard?.writeText(result.url);toast('Restricted scanner link created.','OK');setDevices(await api.adminScannerSessions());}catch(error){toast(error.message,'!');}}} revoke={id=>window.confirm('Revoke this scanner device immediately?')&&act(()=>api.adminScannerRevoke(id),'Scanner access revoked.')}/>}
+        {section==='analytics'&&<AnalyticsWorkspace data={data}/>}
+        {section==='settings'&&<SettingsWorkspace data={data} logout={signOut}/>}
+      </div>
+    </div>
+  </main>;
 }
+
+function DatingWorkspace({form,setForm,save}){
+  return <form className="admin-surface admin-form admin-dating-control" onSubmit={save}>
+    <div className="admin-section-title"><div><span>Live product control</span><h2>Venue dating app</h2></div><Status>{form.enabled?'open':'closed'}</Status></div>
+    <p className="admin-body-copy">This switch controls registration, paid entry, profiles, discovery, matching, groups, and the venue compass. Guests already signed in will see a closed-room screen when it is disabled.</p>
+    <label className="admin-toggle"><input type="checkbox" checked={form.enabled} onChange={e=>setForm({...form,enabled:e.target.checked,competitionEnabled:e.target.checked?form.competitionEnabled:false})}/><span><b>Dating event is open</b><small>Allow guests to register, pay the $5 access fee, and enter tonight's room.</small></span></label>
+    <label className="admin-toggle"><input type="checkbox" checked={form.competitionEnabled} disabled={!form.enabled} onChange={e=>setForm({...form,competitionEnabled:e.target.checked})}/><span><b>King & Queen voting is open</b><small>Show eligible event selfies in randomized one-person-at-a-time voting.</small></span></label>
+    <label><span>Closed-room message</span><textarea rows="4" maxLength="180" value={form.message||''} onChange={e=>setForm({...form,message:e.target.value})}/><small>{(form.message||'').length}/180 characters</small></label>
+    <div className="admin-dating-warning"><b>Operational effect</b><p>Turning the dating event off also closes voting. It does not delete accounts, access payments, profiles, or recorded votes.</p></div>
+    <button className="btn btn-primary">Save controls</button>
+  </form>;
+}
+
+function Overview({totals,upcoming,data,orderLog,changeOrderPage,go}){
+  const metrics=[['Gross sales',money(totals.revenue),'tickets'],['Paid orders',totals.paidOrders||0,'tickets'],['Tickets issued',totals.tickets||0,'tickets'],['Door check-ins',totals.checkedIn||0,'door'],['Unread enquiries',totals.unreadMessages||0,'inbox'],['Subscribers',totals.subscribers||0,'audience']];
+  const attention=[];
+  if(!upcoming.length)attention.push(['No upcoming event','The public schedule has no active future event.','events']);
+  if(totals.unreadMessages)attention.push([`${totals.unreadMessages} unread ${totals.unreadMessages===1?'message':'messages'}`,'Guests are waiting for a response.','inbox']);
+  if((data.orders||[]).some(o=>o.paymentStatus==='paid'&&o.emailStatus==='failed'))attention.push(['Ticket email failed','A paid guest may not have received their QR code.','tickets']);
+  return <><section className="admin-metric-grid">{metrics.map(([label,value,to])=><button key={label} onClick={()=>go(to)}><span>{label}</span><b>{value}</b><small>Open records →</small></button>)}</section><section className="admin-overview-grid"><div className="admin-surface admin-next-event"><div className="admin-section-title"><div><span>Next live operation</span><h2>{upcoming[0]?.title||'Schedule needed'}</h2></div><Status>{upcoming[0]?'on sale':'attention'}</Status></div>{upcoming[0]?<><p className="admin-big-date">{new Date(upcoming[0].date).toLocaleDateString('en-CA',{day:'2-digit',month:'short'}).toUpperCase()}</p><dl><div><dt>Doors</dt><dd>{dateTime(upcoming[0].date)}</dd></div><div><dt>Room</dt><dd>{upcoming[0].room}</dd></div><div><dt>Capacity</dt><dd>{upcoming[0].capacity||'Unlimited'}</dd></div></dl><button className="admin-text-action" onClick={()=>go('events')}>Manage this event →</button></>:<Empty title="Nothing is on sale" copy="Create an event before promoting the next ISKRA night."/>}</div><div className="admin-surface"><div className="admin-section-title"><div><span>Needs attention</span><h2>Operations queue</h2></div><b>{attention.length}</b></div><div className="admin-attention-list">{attention.map(([title,copy,to])=><button key={title} onClick={()=>go(to)}><i/><span><b>{title}</b><small>{copy}</small></span><strong>→</strong></button>)}{!attention.length&&<Empty title="All clear" copy="No immediate operational issues were found."/>}</div></div></section><section className="admin-surface"><div className="admin-section-title"><div><span>Latest transactions</span><h2>Recent orders</h2></div><p>{orderLog.pagination.total||0} total orders</p></div><OrderTable rows={orderLog.items||[]}/><Pagination pagination={orderLog.pagination} changePage={changeOrderPage} label="order"/></section></>;
+}
+
+function EventsWorkspace({data,form,setForm,save,remove}){
+  const change=e=>setForm({...form,[e.target.name]:e.target.type==='checkbox'?e.target.checked:e.target.value});
+  return <div className="admin-two-column admin-editor-layout"><section className="admin-surface"><div className="admin-section-title"><div><span>All schedule items</span><h2>{data.events.length} events</h2></div></div><div className="admin-record-list">{data.events.map(event=><article key={event.slug}><div className="admin-record-date"><b>{new Date(event.date).getDate()}</b><span>{new Date(event.date).toLocaleDateString('en',{month:'short'})}</span></div><div><h3>{event.title}</h3><p>{dateTime(event.date)} · {event.room}</p><span>{event.capacity?`${event.capacity} capacity`:'No capacity limit'} · from {money(event.from)} · arcade {event.arcadeEnabled===false?'off':`min ${event.arcadeMinParticipants||30}`}</span></div><Status>{eventState(event)}</Status><button className="admin-danger-link" onClick={()=>remove(event.slug)}>Remove</button></article>)}</div></section><form id="event-editor" className="admin-surface admin-form" onSubmit={save}><div className="admin-section-title"><div><span>Event editor</span><h2>Create or update</h2></div></div><p className="admin-form-note">Using an existing slug updates that event. Review public details before saving.</p><div className="admin-field-grid"><label><span>Event title *</span><input name="title" value={form.title} onChange={change} required/></label><label><span>URL slug</span><input name="slug" value={form.slug} onChange={change} placeholder="generated-from-title"/></label><label><span>Date & time *</span><input type="datetime-local" name="date" value={form.date} onChange={change} required/></label><label><span>Room</span><input name="room" value={form.room} onChange={change}/></label><label className="full"><span>Support / subtitle</span><input name="support" value={form.support} onChange={change}/></label><label className="full"><span>Venue address</span><input name="address" value={form.address} onChange={change}/></label><label className="full"><span>Description</span><textarea name="description" rows="4" value={form.description} onChange={change}/></label><label className="full"><span>Poster path or URL</span><input name="image" value={form.image} onChange={change}/></label><label><span>Price from</span><input type="number" min="0" name="from" value={form.from} onChange={change}/></label><label><span>Capacity</span><input type="number" min="0" name="capacity" value={form.capacity} onChange={change}/></label><label><span>Arcade minimum</span><input type="number" min="30" max="50" name="arcadeMinParticipants" value={form.arcadeMinParticipants} onChange={change}/></label><label><span>Tags</span><input name="tags" value={form.tags} onChange={change}/></label><label><span>Badges</span><input name="badges" value={form.badges} onChange={change}/></label></div><label className="admin-toggle"><input type="checkbox" name="arcadeEnabled" checked={form.arcadeEnabled} onChange={change}/><span><b>Enter the Spark competition</b><small>Closes automatically seven days before this event.</small></span></label><label className="admin-toggle"><input type="checkbox" name="active" checked={form.active} onChange={change}/><span><b>Publish to schedule</b><small>Turn off to keep this event hidden.</small></span></label><button className="btn btn-primary">Save event</button></form></div>;
+}
+
+function TicketsWorkspace({tickets,orders,orderPagination,changeOrderPage,update}){return <><section className="admin-surface"><div className="admin-section-title"><div><span>Payment ledger</span><h2>Recent orders</h2></div><p>{orderPagination.total||0} total orders</p></div><OrderTable rows={orders}/><Pagination pagination={orderPagination} changePage={changeOrderPage} label="order"/></section><section className="admin-surface"><div className="admin-section-title"><div><span>Admission inventory</span><h2>Issued tickets</h2></div><p>{tickets.length} matching records</p></div><div className="admin-ticket-table">{tickets.map(t=><article key={t.id}><div><Status>{t.status}</Status><b>{t.reference}</b><span>{dateTime(t.createdAt)}</span></div><div><b>{t.buyerName}</b><span>{t.buyerEmail}</span></div><div><b>{t.eventTitle}</b><span>{t.tier} · {money(t.price)}</span></div><div className="admin-row-actions">{t.status==='reserved'&&<button onClick={()=>update(t,'redeemed')}>Check in</button>}{t.status!=='cancelled'&&<button onClick={()=>update(t,'cancelled')}>Cancel</button>}{t.status==='cancelled'&&<button onClick={()=>update(t,'reserved')}>Restore</button>}</div></article>)}{!tickets.length&&<Empty title="No ticket matches" copy="Try a guest name, email, reference or event title."/>}</div></section></>}
+function OrderTable({rows}){return <div className="admin-order-table"><div className="admin-table-head"><span>Customer</span><span>Event / tier</span><span>Payment</span><span>Total</span><span>Created</span></div>{rows.map(row=><article key={row.id}><div><b>{row.buyerName||'Guest'}</b><small>{row.email||'No email'}</small></div><div><b>{row.eventSlug}</b><small>{row.qty} × {row.tier}{row.code?` · ${row.code}`:''}</small></div><Status>{row.paymentStatus}</Status><b>{money(row.total)}</b><span>{dateTime(row.createdAt)}</span></article>)}{!rows.length&&<Empty title="No orders found" copy="Paid and pending checkout records will appear here."/>}</div>}
+function Pagination({pagination={},changePage,label}){return pagination.pages>1?<nav className="admin-pagination" aria-label={`${label} pages`}><button onClick={()=>changePage(pagination.page-1)} disabled={!pagination.hasPrevious}>← Previous</button><span>Page <b>{pagination.page}</b> of {pagination.pages}</span><button onClick={()=>changePage(pagination.page+1)} disabled={!pagination.hasNext}>Next →</button></nav>:null}
+
+function PromotionsWorkspace({data,form,setForm,save}){const change=e=>setForm({...form,[e.target.name]:e.target.value});return <><div className="admin-two-column"><section className="admin-surface"><div className="admin-section-title"><div><span>Campaign codes</span><h2>Offer inventory</h2></div></div><div className="admin-promo-list">{(data.promoCodes||[]).map(p=><article key={p.id}><div><Status>{p.status}</Status><h3>{p.code}</h3><p>{p.label}</p></div><b>{p.flat?money(p.flat):`${Math.round(p.off*100)}% off`}</b><span>{p.appliesTo==='all'?'All events':p.appliesTo}<br/>Limit {p.maxQty} / order</span></article>)}{!data.promoCodes?.length&&<Empty title="No campaign codes" copy="Promo codes are seeded and validated by the ticket checkout service."/>}</div></section><form className="admin-surface admin-form" onSubmit={save}><div className="admin-section-title"><div><span>Public campaign</span><h2>New signup banner</h2></div></div><label><span>Headline *</span><input name="title" value={form.title} onChange={change} required/></label><label><span>Supporting copy</span><textarea name="text" rows="4" value={form.text} onChange={change}/></label><div className="admin-field-grid"><label><span>Button label</span><input name="cta" value={form.cta} onChange={change}/></label><label><span>Placement</span><select name="placement" value={form.placement} onChange={change}><option value="home">Home</option><option value="offers">Offers</option><option value="newsletter">Newsletter</option></select></label><label className="full"><span>Destination</span><input name="href" value={form.href} onChange={change}/></label></div><div className="admin-banner-preview"><small>Live preview</small><h3>{form.title||'Your campaign headline'}</h3><p>{form.text||'Supporting promotion copy appears here.'}</p><b>{form.cta||'Join the list'} →</b></div><button className="btn btn-primary">Publish banner</button></form></div><section className="admin-surface"><div className="admin-section-title"><div><span>Consent-aware lifecycle</span><h2>Account campaign performance</h2></div><p>{data.totals.consentRecords||0} consent decisions</p></div><div className="admin-campaign-table">{(data.campaigns||[]).map(c=><article key={c.id}><div><Status>{c.active?'live':'paused'}</Status><b>{c.title||c.key}</b><small>{c.placement} · {c.audience} · cap {c.frequencyCap}</small></div><span><b>{c.impressions}</b><small>Impressions</small></span><span><b>{c.dismissals}</b><small>Dismissals</small></span><span><b>{c.conversions}</b><small>Conversions</small></span><strong>{c.impressions?`${Math.round(c.conversions/c.impressions*100)}%`:'0%'}</strong></article>)}{!data.campaigns?.length&&<Empty title="No lifecycle campaigns" copy="Seed or create a consent-aware campaign to begin measuring conversions."/>}</div></section></>}
+
+function AudienceWorkspace({data}){const membershipByUser=new Map((data.memberships||[]).map(row=>[String(row.userId),row]));return <><section className="admin-surface"><div className="admin-section-title"><div><span>Customer identity</span><h2>Registered accounts</h2></div><b>{data.totals.users||0}</b></div><div className="admin-customer-table">{(data.users||[]).map(user=>{const membership=membershipByUser.get(String(user.id));return <article key={user.id}><span className="admin-avatar">{(user.name||user.email)[0].toUpperCase()}</span><div><b>{user.name||'Name not set'}</b><small>{user.email}</small></div><div><Status>{user.emailVerified?'verified':'unverified'}</Status><small>{user.locale?.toUpperCase()||'EN'} · joined {dateTime(user.createdAt)}</small></div><div><Status>{membership?.status||'no membership'}</Status><small>{membership?.plan||'Guest account'}</small></div><span>{dateTime(user.lastLoginAt)}</span></article>})}{!data.users?.length&&<Empty title="No customer accounts" copy="Registered guests will appear here without exposing passwords or session data."/>}</div></section><div className="admin-two-column"><section className="admin-surface"><div className="admin-section-title"><div><span>Consent list</span><h2>Newsletter audience</h2></div><b>{data.subscribers.length}</b></div><div className="admin-subscriber-table">{data.subscribers.map(s=><article key={s._id}><span className="admin-avatar">{s.email[0].toUpperCase()}</span><div><b>{s.email}</b><small>Joined {dateTime(s.createdAt)} · {s.source||'newsletter'}</small></div><Status>subscribed</Status></article>)}</div></section><section className="admin-surface"><div className="admin-section-title"><div><span>Verified guests</span><h2>Event feedback</h2></div></div><div className="admin-feedback-score"><div><b>{data.feedbackSummary.average||'–'}</b><span>Overall</span></div><div><b>{data.feedbackSummary.music||'–'}</b><span>Music</span></div><div><b>{data.feedbackSummary.venue||'–'}</b><span>Venue</span></div></div><div className="admin-feedback-list">{data.feedback.slice(0,12).map(f=><article key={f._id}><b>{f.eventTitle} · {f.rating}/5</b><p>{f.comment||'No written comment.'}</p><span>{f.ticketReference}</span></article>)}{!data.feedback.length&&<Empty title="No guest feedback yet" copy="Responses from verified ticket holders appear here."/>}</div></section></div></>}
+
+function InboxWorkspace({messages,update}){return <section className="admin-inbox"><aside><span>Folders</span><button className="active">All messages <b>{messages.length}</b></button><button>Unread</button><button>Resolved</button><button>Archived</button></aside><div className="admin-surface"><div className="admin-section-title"><div><span>Contact requests</span><h2>Team inbox</h2></div></div><div className="admin-message-list">{messages.map(m=><article key={m._id} className={m.status==='new'?'unread':''}><header><div><Status>{m.status}</Status><b>{m.subject}</b></div><time>{dateTime(m.createdAt)}</time></header><h3>{m.name} <span>{m.email}</span></h3><p>{m.message}</p>{(m.category||m.eventDate||m.groupSize)&&<small>{m.category}{m.eventDate?` · ${new Date(m.eventDate).toLocaleDateString()}`:''}{m.groupSize?` · ${m.groupSize} guests`:''}</small>}<footer>{m.status==='new'&&<button onClick={()=>update(m._id,'read')}>Mark read</button>}{m.status!=='archived'&&<button onClick={()=>update(m._id,'archived')}>Archive</button>}</footer></article>)}{!messages.length&&<Empty title="Inbox is clear" copy="No message matches the current search."/>}</div></div></section>}
+
+function ContentWorkspace({data,statusForm,setStatusForm,saveStatus,galleryForm,setGalleryForm,saveGallery,remove}){return <><div className="admin-two-column"><form className="admin-surface admin-form" onSubmit={saveStatus}><div className="admin-section-title"><div><span>Public signal</span><h2>Announcement bar</h2></div><Status>{statusForm.open?'live':'paused'}</Status></div><label className="admin-toggle"><input type="checkbox" checked={statusForm.open} onChange={e=>setStatusForm({...statusForm,open:e.target.checked})}/><span><b>Events are active</b><small>Controls public availability messaging.</small></span></label><label><span>Announcement message</span><textarea rows="5" maxLength="180" value={statusForm.message} onChange={e=>setStatusForm({...statusForm,message:e.target.value})}/><small>{statusForm.message.length}/180 characters</small></label><button className="btn btn-primary">Publish update</button></form><form className="admin-surface admin-form" onSubmit={saveGallery}><div className="admin-section-title"><div><span>Media library</span><h2>Add photograph</h2></div></div><label><span>Image path or URL *</span><input value={galleryForm.url} onChange={e=>setGalleryForm({...galleryForm,url:e.target.value})} required/></label><label><span>Accessible description *</span><input value={galleryForm.alt} onChange={e=>setGalleryForm({...galleryForm,alt:e.target.value})} required/></label><label><span>Display order</span><input type="number" value={galleryForm.order} onChange={e=>setGalleryForm({...galleryForm,order:e.target.value})}/></label><button className="btn btn-primary">Add to gallery</button></form></div><section className="admin-surface"><div className="admin-section-title"><div><span>Public gallery</span><h2>{data.gallery.length} photographs</h2></div></div><div className="admin-media-grid">{data.gallery.map(item=><figure key={item._id}><img src={item.url} alt={item.alt}/><figcaption><span>{item.alt}</span><button onClick={()=>remove(item._id)}>Remove</button></figcaption></figure>)}{!data.gallery.length&&<Empty title="Bundled gallery active" copy="Add database-managed images here when the next event photos arrive."/>}</div></section></>}
+
+function DoorWorkspace({events,devices,scanLog,changeScanPage,form,setForm,inviteUrl,inviteQr,create,revoke}){const logs=scanLog.items||[];const page=scanLog.pagination||{};return <><section className="admin-door-intro"><div><p>Separate permission boundary</p><h2>Door staff can scan.<br/>They cannot administer.</h2></div><p>Each invite authorises one device for verification and one-time redemption only. Restrict it to tonight’s event, then revoke it after the shift.</p></section><div className="admin-two-column"><section className="admin-surface admin-form"><div className="admin-section-title"><div><span>Provision device</span><h2>Create scanner link</h2></div></div><label><span>Device label</span><input value={form.label} onChange={e=>setForm({...form,label:e.target.value})}/></label><label><span>Event permission</span><select value={form.eventSlug} onChange={e=>setForm({...form,eventSlug:e.target.value})}><option value="">All events</option>{events.map(event=><option key={event.slug} value={event.slug}>{event.title}</option>)}</select></label><div className="admin-field-grid"><label><span>Link expires (minutes)</span><input type="number" min="1" max="1440" value={form.ttlMinutes} onChange={e=>setForm({...form,ttlMinutes:e.target.value})}/></label><label><span>Device session (days)</span><input type="number" min="1" max="30" value={form.sessionDays} onChange={e=>setForm({...form,sessionDays:e.target.value})}/></label></div><button className="btn btn-primary" onClick={create}>Generate restricted link</button>{inviteUrl&&<div className="admin-invite"><span>One-time onboarding link</span>{inviteQr&&<figure className="admin-invite-qr"><img src={inviteQr} alt="Onboarding QR code for the door device" width="520" height="520"/><figcaption>Point the door phone at this code</figcaption></figure>}<code>{inviteUrl}</code><small>Scanning the code keeps the link off chat apps. It expires shortly and authorises one device.</small></div>}</section><section className="admin-surface"><div className="admin-section-title"><div><span>Authorised hardware</span><h2>Scanner devices</h2></div><b>{devices.filter(d=>d.status==='active').length} active</b></div><div className="admin-device-list">{devices.map(d=><article key={d.id}><div><Status>{d.status}</Status><h3>{d.label}</h3><p>{d.eventSlug||'All events'} · expires {dateTime(d.expiresAt)}</p><small>{d.admitCount} admitted / {d.scanCount} scans · last seen {dateTime(d.lastSeenAt)}</small></div>{d.status==='active'&&<button onClick={()=>revoke(d.id)}>Revoke</button>}</article>)}{!devices.length&&<Empty title="No authorised devices" copy="Create a restricted link for tonight’s entrance team."/>}</div></section></div><section className="admin-surface"><div className="admin-section-title"><div><span>Append-only audit</span><h2>Recent door decisions</h2></div><p>{page.total||0} total scans</p></div><div className="admin-scan-log"><div className="admin-scan-head"><span>Scanned</span><span>Guest</span><span>Ticket / event</span><span>Device</span><span>Decision</span></div>{logs.map(log=><article key={log.id}><time>{dateTime(log.at)}</time><div><b>{log.guestName||'Unknown guest'}</b><small>{log.guestEmail||'No ticket email available'}</small></div><div><b>{log.reference||'Unknown code'}</b><small>{log.eventSlug||'No event'}</small></div><span>{log.label||'Door device'}</span><Status>{log.outcome}</Status></article>)}{!logs.length&&<Empty title="No scans recorded" copy="Every admission and rejection will be recorded here."/>}</div>{page.pages>1&&<nav className="admin-pagination" aria-label="Door decision pages"><button onClick={()=>changeScanPage(page.page-1)} disabled={!page.hasPrevious}>← Previous</button><span>Page <b>{page.page}</b> of {page.pages}</span><button onClick={()=>changeScanPage(page.page+1)} disabled={!page.hasNext}>Next →</button></nav>}</section></>}
+
+function AnalyticsWorkspace({data}){const days=[...new Set((data.activity||[]).map(a=>a.day))];const totalsByDay=days.map(day=>({day,total:(data.activity||[]).filter(a=>a.day===day).reduce((sum,row)=>sum+row.count,0)}));const max=Math.max(1,...totalsByDay.map(row=>row.total));return <><section className="admin-metric-grid compact"><article><span>All visits</span><b>{data.totals.visits||0}</b></article><article><span>Tracked clicks</span><b>{data.totals.clicks||0}</b></article><article><span>Signups</span><b>{data.totals.signups||0}</b></article><article><span>Click / visit</span><b>{data.totals.visits?`${Math.round(data.totals.clicks/data.totals.visits*100)}%`:'0%'}</b></article></section><section className="admin-surface"><div className="admin-section-title"><div><span>Last seven days</span><h2>Activity signal</h2></div><p>Server-recorded analytics</p></div><div className="admin-chart">{totalsByDay.map(row=><div key={row.day}><span style={{height:`${Math.max(8,row.total/max*100)}%`}}/><b>{row.total}</b><small>{new Date(row.day+'T12:00:00').toLocaleDateString('en',{weekday:'short'})}</small></div>)}{!days.length&&<Empty title="No recent activity" copy="Visits, clicks, signups and contact conversions will appear here."/>}</div><div className="admin-chart-legend"><span><i/>Combined visits, clicks, signups and contacts</span></div></section></>}
+function SettingsWorkspace({data,logout}){const groups=[...new Set((data.emailTemplates||[]).map(item=>item.group))];return <><div className="admin-two-column"><section className="admin-surface"><div className="admin-section-title"><div><span>Current access model</span><h2>Operations administrator</h2></div><Status>active</Status></div><p className="admin-body-copy">This dashboard uses a server-issued, HTTP-only session. Scanner devices have separate, revocable credentials and cannot access customer or administration data.</p><button className="btn btn-ghost" onClick={logout}>Sign out of admin</button></section><section className="admin-surface"><div className="admin-section-title"><div><span>Permission boundaries</span><h2>Security controls</h2></div></div><ul className="admin-checklist"><li><b>Active</b><span>Restricted scanner-only sessions</span></li><li><b>Active</b><span>Atomic one-time ticket redemption</span></li><li><b>Active</b><span>Door decision audit trail</span></li><li><b>Active</b><span>Hashed customer sessions and CSRF protection</span></li></ul></section></div><section className="admin-surface"><div className="admin-section-title"><div><span>Lifecycle communications</span><h2>Localized email registry</h2></div><p>{data.emailTemplates?.length||0} templates · EN / UK / RU</p></div><div className="admin-template-groups">{groups.map(group=><section key={group}><h3>{group}</h3>{data.emailTemplates.filter(item=>item.group===group).map(item=><article key={item.key}><code>{item.key}</code><span>{item.subject}</span><small>{item.locales.join(' / ').toUpperCase()}</small></article>)}</section>)}</div></section></>}

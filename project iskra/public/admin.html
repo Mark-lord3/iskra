@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Адмін · Project Iskra Montréal</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='4' fill='%23e63946'/><text x='16' y='23' font-size='20' font-weight='bold' fill='white' text-anchor='middle'>I</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="admin.css?v=2">
+</head>
+<body>
+
+
+<div class="auth-page" id="authGate">
+    <div class="auth-card">
+        <div class="auth-logo">
+            <svg viewBox="0 0 100 100" class="auth-spark">
+                <defs>
+                    <linearGradient id="sg" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#0057B7"/>
+                        <stop offset="100%" stop-color="#FFD700"/>
+                    </linearGradient>
+                </defs>
+                <polygon points="50,5 61,40 98,40 68,62 79,97 50,75 21,97 32,62 2,40 39,40" fill="url(#sg)"/>
+            </svg>
+        </div>
+        <h1 class="auth-title">Project Iskra</h1>
+        <p class="auth-sub">Панель адміністратора</p>
+
+        <form id="loginForm" autocomplete="off" novalidate>
+            <div class="field-group">
+                <label class="field-label" for="loginId">Email або телефон</label>
+                <input class="field-input" type="text" id="loginId"
+                       placeholder="admin@iskra.ca" autocomplete="username" required>
+            </div>
+            <div class="field-group">
+                <label class="field-label" for="loginPw">Пароль</label>
+                <div class="pw-wrap">
+                    <input class="field-input" type="password" id="loginPw"
+                           placeholder="••••••••" autocomplete="current-password" required>
+                    <button type="button" class="pw-eye" id="pwEye" aria-label="Показати пароль">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="auth-error" id="loginError" role="alert"></div>
+            <button class="btn-primary w-full" type="submit" id="loginBtn">Увійти</button>
+        </form>
+    </div>
+</div>
+
+
+<div class="admin-app" id="adminApp" hidden>
+
+    
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-logo">
+            <svg viewBox="0 0 100 100" width="28" height="28">
+                <polygon points="50,5 61,40 98,40 68,62 79,97 50,75 21,97 32,62 2,40 39,40" fill="url(#sg2)"/>
+                <defs>
+                    <linearGradient id="sg2" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#0057B7"/>
+                        <stop offset="100%" stop-color="#FFD700"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+            <span class="sidebar-brand">Iskra</span>
+        </div>
+
+        <nav class="sidebar-nav" role="navigation">
+            <button class="nav-item active" data-sec="dashboard">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nav-icon"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                <span>Дашборд</span>
+            </button>
+            <button class="nav-item" data-sec="events">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nav-icon"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                <span>Події</span>
+                <span class="nav-badge" id="nbEvents"></span>
+            </button>
+            <button class="nav-item" data-sec="tickets">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nav-icon"><path d="M3 7v2a3 3 0 000 6v2a2 2 0 002 2h14a2 2 0 002-2v-2a3 3 0 000-6V7a2 2 0 00-2-2H5a2 2 0 00-2 2z"/></svg>
+                <span>Резервації</span>
+                <span class="nav-badge" id="nbTickets"></span>
+            </button>
+
+            <button class="nav-item" data-sec="users">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nav-icon"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                <span>Користувачі</span>
+            </button>
+            <button class="nav-item" data-sec="gallery">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nav-icon"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <span>Галерея</span>
+            </button>
+        </nav>
+
+        <div class="sidebar-footer">
+            <a href="/admin/scan" class="sidebar-action">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M3 7V5a2 2 0 012-2h2M3 17v2a2 2 0 002 2h2M17 3h2a2 2 0 012 2v2M17 21h2a2 2 0 002-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+                Сканер резервацій
+            </a>
+            <a href="/admin-archive" class="sidebar-action">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                Архів подій
+            </a>
+            <a href="/" class="sidebar-action">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                Головна
+            </a>
+            <button class="sidebar-action danger" id="logoutBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                Вийти
+            </button>
+        </div>
+    </aside>
+
+    
+    <div class="main-wrap">
+
+        
+        <header class="topbar" id="topbar">
+            <div class="topbar-left">
+                <svg viewBox="0 0 100 100" width="22" height="22" style="flex-shrink:0">
+                    <polygon points="50,5 61,40 98,40 68,62 79,97 50,75 21,97 32,62 2,40 39,40" fill="url(#sg3)"/>
+                    <defs><linearGradient id="sg3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0057B7"/><stop offset="100%" stop-color="#FFD700"/></linearGradient></defs>
+                </svg>
+                <span class="topbar-title" id="topbarTitle">Дашборд</span>
+            </div>
+            <div class="topbar-right">
+                <a href="/admin/scan" class="topbar-btn" title="Сканер">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M3 7V5a2 2 0 012-2h2M3 17v2a2 2 0 002 2h2M17 3h2a2 2 0 012 2v2M17 21h2a2 2 0 002-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+                </a>
+                <button class="topbar-btn danger" id="logoutBtnMob" title="Вийти">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </button>
+            </div>
+        </header>
+
+        
+        <main class="content" id="contentArea">
+
+            
+            <section class="sec" id="secDashboard">
+                <div class="sec-head">
+                    <h2 class="sec-title">Дашборд</h2>
+                    <span class="sec-sub" id="dashDate"></span>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card blue">
+                        <div class="stat-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                        </div>
+                        <div class="stat-body">
+                            <div class="stat-num" id="dEvents">-</div>
+                            <div class="stat-label">Активні події</div>
+                        </div>
+                    </div>
+                    <div class="stat-card gold">
+                        <div class="stat-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M3 7v2a3 3 0 000 6v2a2 2 0 002 2h14a2 2 0 002-2v-2a3 3 0 000-6V7a2 2 0 00-2-2H5a2 2 0 00-2 2z"/></svg>
+                        </div>
+                        <div class="stat-body">
+                            <div class="stat-num" id="dTickets">-</div>
+                            <div class="stat-label">Резервації</div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card purple">
+                        <div class="stat-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                        </div>
+                        <div class="stat-body">
+                            <div class="stat-num" id="dUsers">-</div>
+                            <div class="stat-label">Користувачі</div>
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div class="card">
+                    <div class="card-head">
+                        <h3 class="card-title">Статус івентів</h3>
+                    </div>
+                    <div class="club-row">
+                        <label class="toggle" aria-label="Івенти доступні/закриті">
+                            <input type="checkbox" id="clubToggle">
+                            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                        </label>
+                        <span class="club-label" id="clubLabel">Завантаження...</span>
+                    </div>
+                    <div class="field-group" style="margin-top:14px">
+                        <label class="field-label" for="clubMsg">Повідомлення (необов'язково)</label>
+                        <div class="input-row">
+                            <input class="field-input" type="text" id="clubMsg" placeholder="Наприклад: Наступна вечірка - 15 серпня">
+                            <button class="btn-icon-gold" id="saveClubBtn" title="Зберегти">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="toast" id="clubToast"></div>
+                </div>
+
+                
+                <div class="quick-links">
+                    <button class="quick-btn" data-sec="events">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Нова подія
+                    </button>
+                    <a class="quick-btn" href="/admin/scan">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M3 7V5a2 2 0 012-2h2M3 17v2a2 2 0 002 2h2M17 3h2a2 2 0 012 2v2M17 21h2a2 2 0 002-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+                        Сканер
+                    </a>
+                    <a class="quick-btn" href="/admin-archive">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/></svg>
+                        Архів
+                    </a>
+                </div>
+            </section>
+
+            
+            <section class="sec hidden" id="secEvents">
+                <div class="sec-head">
+                    <h2 class="sec-title">Події</h2>
+                    <button class="btn-primary sm" id="openEventFormBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Нова подія
+                    </button>
+                </div>
+
+                <div class="events-list" id="eventsList">
+                    <div class="skeleton-list">
+                        <div class="skeleton-item"></div>
+                        <div class="skeleton-item"></div>
+                        <div class="skeleton-item"></div>
+                    </div>
+                </div>
+            </section>
+
+            
+            <section class="sec hidden" id="secTickets">
+                <div class="sec-head">
+                    <h2 class="sec-title">Резервації</h2>
+                    <div class="sec-actions">
+                        <div class="search-box">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input type="search" id="ticketSearch" placeholder="Пошук...">
+                        </div>
+                    </div>
+                </div>
+                <div class="filter-row" id="ticketFilters">
+                    <button class="filter-pill active" data-filter="all">Всі</button>
+                    <button class="filter-pill" data-filter="active">Дійсні</button>
+                    <button class="filter-pill" data-filter="used">Оплачені</button>
+                    <button class="filter-pill" data-filter="cancelled">Скасовані</button>
+                </div>
+                <div class="tickets-list" id="ticketsList">
+                    <div class="skeleton-list">
+                        <div class="skeleton-item"></div>
+                        <div class="skeleton-item"></div>
+                        <div class="skeleton-item"></div>
+                    </div>
+                </div>
+            </section>
+
+
+
+            <section class="sec hidden" id="secUsers">
+                <div class="sec-head">
+                    <h2 class="sec-title">Користувачі</h2>
+                    <div class="search-box">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="search" id="userSearch" placeholder="Пошук...">
+                    </div>
+                </div>
+                <div class="users-list" id="usersList">
+                    <div class="skeleton-list">
+                        <div class="skeleton-item"></div>
+                        <div class="skeleton-item"></div>
+                        <div class="skeleton-item"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="sec hidden" id="secGallery">
+                <div class="sec-head">
+                    <h2 class="sec-title">Галерея (МОМЕНТИ ISKRA)</h2>
+                    <button class="btn-primary sm" id="addGalleryBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Додати фото
+                    </button>
+                </div>
+                <div class="gallery-admin-grid" id="galleryList">
+                    <div class="skeleton-list">
+                        <div class="skeleton-item"></div>
+                        <div class="skeleton-item"></div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    
+    <nav class="bottom-nav" role="navigation" aria-label="Навігація">
+        <button class="bn-item active" data-sec="dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            <span>Головна</span>
+        </button>
+        <button class="bn-item" data-sec="events">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            <span>Події</span>
+        </button>
+        <button class="bn-item" data-sec="tickets">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M3 7v2a3 3 0 000 6v2a2 2 0 002 2h14a2 2 0 002-2v-2a3 3 0 000-6V7a2 2 0 00-2-2H5a2 2 0 00-2 2z"/></svg>
+            <span>Резервації</span>
+        </button>
+
+        <button class="bn-item" data-sec="users">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            <span>Користувачі</span>
+        </button>
+        <button class="bn-item" data-sec="gallery">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <span>Галерея</span>
+        </button>
+    </nav>
+</div>
+
+
+<div class="modal-overlay" id="eventModal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-head">
+            <h3 class="modal-title" id="modalTitle">Нова подія</h3>
+            <button class="modal-close" id="closeEventModal" aria-label="Закрити">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editEventId">
+
+            <div class="field-group">
+                <label class="field-label" for="evTitle">Назва події *</label>
+                <input class="field-input" type="text" id="evTitle" placeholder="Наприклад: Iskra Night Vol.5" maxlength="120">
+            </div>
+            <div class="field-group">
+                <label class="field-label" for="evImage">Фото івента</label>
+                <div class="ev-image-picker">
+                    <div class="ev-image-preview" id="evImagePreview">
+                        <img id="evPreviewImg" alt="Preview" style="display:none;">
+                        <span class="ev-image-placeholder" id="evImagePlaceholder">Немає фото</span>
+                    </div>
+                    <div class="ev-image-actions">
+                        <button type="button" class="btn-ghost sm" id="evUploadBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            Завантажити
+                        </button>
+                        <button type="button" class="btn-ghost sm" id="evGalleryPickBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                            Галерея
+                        </button>
+                        <button type="button" class="btn-ghost sm" id="evClearImageBtn" style="display:none;">✕</button>
+                        <input type="file" id="evFileInput" accept="image/*" hidden>
+                    </div>
+                    <span style="font-size:0.65rem;color:rgba(255,255,255,0.25);margin-top:4px;display:block;">Або Ctrl+V для вставки з буфера обміну</span>
+                    <input type="hidden" id="evImage" maxlength="500">
+                </div>
+            </div>
+            <div class="field-group">
+                <label class="field-label" for="evDesc">Опис</label>
+                <textarea class="field-input" id="evDesc" rows="3" placeholder="Короткий опис події..." maxlength="800"></textarea>
+            </div>
+            <div class="field-row">
+                <div class="field-group">
+                    <label class="field-label" for="evDate">Дата та час *</label>
+                    <input class="field-input" type="datetime-local" id="evDate">
+                </div>
+                <div class="field-group">
+                    <label class="field-label" for="evLocation">Адреса</label>
+                    <input class="field-input" type="text" id="evLocation" placeholder="3781 Boulevard Saint-Laurent, Montréal" maxlength="300">
+                </div>
+            </div>
+            <div class="field-row">
+                <div class="field-group">
+                    <label class="field-label" for="evArtist">Артист / Діджей</label>
+                    <input class="field-input" type="text" id="evArtist" placeholder="DJ MLNK" maxlength="200">
+                </div>
+                <div class="field-group">
+                    <label class="field-label" for="evVenue">Локація</label>
+                    <input class="field-input" type="text" id="evVenue" placeholder="MUZIQUE NIGHTCLUB" maxlength="300">
+                </div>
+            </div>
+            <div class="field-row">
+                <div class="field-group">
+                    <label class="field-label" for="evPrice">Ціна ($)</label>
+                    <input class="field-input" type="number" id="evPrice" min="0" step="0.01" value="0">
+                </div>
+                <div class="field-group">
+                    <label class="field-label" for="evCapacity">Місткість</label>
+                    <input class="field-input" type="number" id="evCapacity" min="1" placeholder="без обмежень">
+                </div>
+            </div>
+
+
+
+            <div class="toast" id="eventToast"></div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn-ghost" id="cancelEventModal">Скасувати</button>
+            <button class="btn-primary" id="saveEventBtn">Створити подію</button>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal-overlay" id="pwModal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true">
+        <div class="modal-head">
+            <h3 class="modal-title">Зміна пароля</h3>
+            <button class="modal-close" id="pwModalClose" aria-label="Закрити">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p class="pw-modal-user" id="pwModalUser"></p>
+            <div class="field-group" id="pwCurrentRow" style="display:none">
+                <label class="field-label" for="pwModalCurrent">Поточний пароль</label>
+                <input class="field-input" type="password" id="pwModalCurrent" placeholder="Ваш поточний пароль" autocomplete="current-password">
+            </div>
+            <div class="field-group">
+                <label class="field-label" for="pwModalInput">Новий пароль</label>
+                <input class="field-input" type="password" id="pwModalInput" placeholder="Мінімум 6 символів" autocomplete="new-password">
+            </div>
+            <div class="auth-error" id="pwModalError"></div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn-ghost" id="pwModalCancel">Скасувати</button>
+            <button class="btn-primary" id="pwModalSubmit">Змінити пароль</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="galleryModal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true">
+        <div class="modal-head">
+            <h3 class="modal-title">Додати фото</h3>
+            <button class="modal-close" id="closeGalleryModal" aria-label="Закрити">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="gal-upload-tabs">
+                <button class="gal-tab active" data-galtab="upload">З файлу</button>
+                <button class="gal-tab" data-galtab="url">За URL</button>
+            </div>
+            <div class="gal-tab-content" id="galUploadTab">
+                <div class="gal-dropzone" id="galDropzone">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="36" height="36"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <span>Натисніть або перетягніть фото</span>
+                    <input type="file" id="galFileInput" accept="image/*" hidden>
+                </div>
+                <div class="gal-preview" id="galPreview" style="display:none;">
+                    <img id="galPreviewImg" alt="Preview">
+                    <button class="btn-delete-sm" id="galPreviewRemove">✕</button>
+                </div>
+            </div>
+            <div class="gal-tab-content hidden" id="galUrlTab">
+                <div class="field-group">
+                    <label class="field-label" for="galUrl">URL фото *</label>
+                    <input class="field-input" type="url" id="galUrl" placeholder="https://example.com/photo.jpg">
+                </div>
+            </div>
+            <div class="field-group" style="margin-top:12px;">
+                <label class="field-label" for="galAlt">Підпис (необов'язково)</label>
+                <input class="field-input" type="text" id="galAlt" placeholder="ISKRA #001" maxlength="100">
+            </div>
+            <div class="toast" id="galleryToast"></div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn-ghost" id="cancelGalleryModal">Скасувати</button>
+            <button class="btn-primary" id="saveGalleryBtn">Додати</button>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal-overlay" id="galleryPickerModal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true">
+        <div class="modal-head">
+            <h3 class="modal-title">Оберіть фото з галереї</h3>
+            <button class="modal-close" id="closeGalleryPicker" aria-label="Закрити">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="gallery-picker-grid" id="galleryPickerGrid">
+                <div class="empty-state">Завантаження...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script src="/js/i18n.js?v=2"></script>
+<script src="/js/admin.js?v=2"></script>
+</body>
+</html>

@@ -2,8 +2,10 @@ import { useState } from 'react';
 import Photo from './Photo.jsx';
 import { api } from '../api.js';
 import { useToast } from './Toasts.jsx';
+import {useI18n} from '../i18n.jsx';
 
 export default function Newsletter() {
+  const {t}=useI18n();
   const toast = useToast();
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
@@ -14,7 +16,7 @@ export default function Newsletter() {
     try {
       await api.subscribe(email);
       setEmail('');
-      toast('You are on the list. Presale codes land in your inbox first.', '✦');
+      toast(t('newsletter.success'), '✦');
     } catch (err) { toast(err.message, '!'); }
     finally { setBusy(false); }
   };
@@ -24,13 +26,13 @@ export default function Newsletter() {
       <div className="wrap">
         <div className="nl rv">
           <Photo plate="terrace" alt="" />
-          <h3>Get the drops<br />before the algorithm</h3>
-          <p>Lineups, presale codes and the occasional secret address. Two emails a month, no filler.</p>
+          <h3>{t('newsletter.heading').split('\n').map((line,index)=><span key={line}>{line}{index===0&&<br />}</span>)}</h3>
+          <p>{t('newsletter.copy')}</p>
           <form className="nl-form" onSubmit={submit}>
-            <input type="email" required placeholder="you@email.com" aria-label="Email address"
+            <input type="email" required placeholder="you@email.com" aria-label={t('newsletter.email')}
                    value={email} onChange={e => setEmail(e.target.value)} />
             <button className="btn btn-primary" type="submit" disabled={busy}>
-              {busy ? 'Adding' : 'Subscribe'}
+              {busy ? t('newsletter.adding') : t('newsletter.subscribe')}
             </button>
           </form>
         </div>

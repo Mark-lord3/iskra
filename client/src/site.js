@@ -4,12 +4,11 @@
  * leave one empty and it is simply not rendered, so there are no dead links.
  */
 export const SITE = {
-  address: 'Warehouse 9, Riverside Docks',
-  hours:   'Thursday to Sunday',
+  address: 'Montréal, Québec',
+  hours:   'Dates announced event by event',
   email:   'doors@iskra.orvadora.com',
   social: {
-    instagram: '',
-    residentAdvisor: '',
-    soundcloud: ''
+    'Project ISKRA Instagram': 'https://www.instagram.com/_project_iskra/',
+    'Ukrainian Wave Montréal': 'https://t.me/ukrwavemontreal'
   }
 };

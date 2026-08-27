@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Купити квиток - Project Iskra</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='4' fill='%23e63946'/><text x='16' y='23' font-size='20' font-weight='bold' fill='white' text-anchor='middle'>I</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/buy.css?v=2">
+</head>
+<body>
+    <div class="buy-page">
+        <a href="/" class="back-link">&larr; Назад</a>
+
+        <div id="buyLoading" class="buy-loading">Завантаження...</div>
+        <div id="buyError" class="buy-error" style="display:none;"></div>
+
+        <div id="buyContent" style="display:none;">
+            <div class="buy-layout">
+                <div class="buy-left">
+                    <div class="buy-poster" id="buyPoster"></div>
+                    <h1 class="buy-title" id="buyTitle"></h1>
+                    <div class="buy-meta">
+                        <div class="buy-meta-row" id="buyDateRow">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            <span id="buyDate"></span>
+                        </div>
+                        <div class="buy-meta-row" id="buyVenueRow">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                            <span id="buyVenue"></span>
+                        </div>
+                    </div>
+                    <div class="buy-desc-block" id="buyDescBlock">
+                        <div class="buy-section-label">Опис події</div>
+                        <div class="buy-description" id="buyDesc"></div>
+                    </div>
+                </div>
+
+                <div class="buy-right">
+                    <div class="buy-booking">
+                        <div class="buy-section-label big">Забронюйте квиток</div>
+                        <div class="buy-price-box">
+                            <div class="buy-price-row">
+                                <span>Ціна квитка</span>
+                                <span class="buy-price-val" id="buyPrice"></span>
+                            </div>
+                        </div>
+                        <div class="buy-form-label">Власник квитка:</div>
+                        <form id="buyForm" class="buy-form">
+                            <div class="buy-name-row">
+                                <div class="buy-field">
+                                    <input type="text" id="buyerFirst" placeholder="ІМ'Я" required maxlength="100">
+                                </div>
+                                <div class="buy-field">
+                                    <input type="text" id="buyerLast" placeholder="ФАМІЛІЯ" required maxlength="100">
+                                </div>
+                            </div>
+                            <div class="buy-field full">
+                                <label class="buy-field-label" for="buyerEmail">Адреса електронної пошти *</label>
+                                <input type="email" id="buyerEmail" placeholder="Адреса електронної пошти (ми відправимо ваш квиток сюди)" required maxlength="200">
+                            </div>
+                            <div class="buy-error-msg" id="buyFormError"></div>
+                            <button type="submit" class="buy-submit" id="buySubmit">Оформити замовлення</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="/js/buy.js?v=2"></script>
+</body>
+</html>

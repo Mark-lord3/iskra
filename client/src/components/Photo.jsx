@@ -6,12 +6,12 @@
  * loads. Swap `src` for real ISKRA photography before launch; the grade in
  * .photo will keep new images consistent with the rest of the page.
  */
-export default function Photo({ seed, plate, w = 1200, h = 800, alt = '', className = '', hover = false, children }) {
+export default function Photo({ src, seed, plate, w = 1200, h = 800, alt = '', className = '', hover = false, children }) {
   const imageSeed = seed ?? plate ?? 'iskra-photo';
 
   return (
     <div className={`photo${hover ? ' photo-hover' : ''} ${className}`}>
-      <img src={`https://picsum.photos/seed/${imageSeed}/${w}/${h}?grayscale`}
+      <img src={src || `https://picsum.photos/seed/${imageSeed}/${w}/${h}?grayscale`}
            alt={alt} loading="lazy" decoding="async" width={w} height={h} />
       {children}
     </div>

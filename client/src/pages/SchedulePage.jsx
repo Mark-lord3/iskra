@@ -4,6 +4,8 @@ import Events from '../components/Events.jsx';
 import Footer from '../components/Footer.jsx';
 import Nav from '../components/Nav.jsx';
 import PromoBar from '../components/PromoBar.jsx';
+import {useReveal} from '../hooks/useReveal.js';
+import {useI18n} from '../i18n.jsx';
 
 const MOCK_SLUGS = new Set([
   'closing-vera-ostrov',
@@ -16,7 +18,9 @@ const MOCK_SLUGS = new Set([
 ]);
 
 export default function SchedulePage({ onTickets }) {
+  const {t}=useI18n();
   const [events, setEvents] = useState([]);
+  useReveal([events.length]);
 
   useEffect(() => {
     api.events().then(data => {
@@ -32,9 +36,9 @@ export default function SchedulePage({ onTickets }) {
       <main>
         <section className="page-hero schedule-hero">
           <div className="wrap">
-            <div className="eyebrow">Schedule</div>
-            <h1 className="h-xl">Next nights post here.</h1>
-            <p className="lead">The public page shows only schedule items the team is ready to promote.</p>
+            <div className="eyebrow">{t('schedule.eyebrow')}</div>
+            <h1 className="h-xl">{t('schedule.title')}</h1>
+            <p className="lead">{t('schedule.lead')}</p>
           </div>
         </section>
         {events.length ? (
@@ -42,12 +46,12 @@ export default function SchedulePage({ onTickets }) {
         ) : (
           <section className="section">
             <div className="wrap empty-schedule">
-              <img src="/last-event/grand-opening-poster.png" alt="Project Iskra grand opening poster" />
+              <img src="/last-event/project_iskra_event.jpg" alt={t('home.photoAlt',{number:1})} />
               <div>
-                <span className="tag tag-ember">Latest event</span>
-                <h2 className="h-lg">New schedule coming soon.</h2>
-                <p className="lead">The grand opening was August 28 at Muzique. Join the promo list for the next announcement.</p>
-                <a className="btn btn-primary" href="/newsletter">Join promo list</a>
+                <span className="tag tag-ember">{t('schedule.latest')}</span>
+                <h2 className="h-lg">{t('schedule.empty')}</h2>
+                <p className="lead">{t('schedule.emptyCopy')}</p>
+                <a className="btn btn-primary" href="/newsletter">{t('common.joinList')}</a>
               </div>
             </div>
           </section>

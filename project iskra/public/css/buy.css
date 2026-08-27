@@ -1,0 +1,333 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    background: #111111;
+    color: #ffffff;
+    font-family: 'Montserrat', sans-serif;
+    min-height: 100vh;
+}
+
+.buy-page {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+}
+
+.back-link {
+    display: inline-block;
+    color: rgba(255,255,255,0.35);
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-bottom: 28px;
+    transition: color 0.2s;
+}
+.back-link:hover { color: #e63946; }
+
+.buy-loading {
+    text-align: center;
+    padding: 80px 20px;
+    color: rgba(255,255,255,0.3);
+    font-size: 0.85rem;
+}
+
+.buy-error {
+    text-align: center;
+    padding: 80px 20px;
+    color: rgba(255,255,255,0.4);
+    font-size: 0.85rem;
+}
+
+.buy-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 36px;
+    align-items: start;
+}
+
+.buy-poster {
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgba(255,255,255,0.04);
+    width: 280px;
+    aspect-ratio: 3/4;
+}
+
+.buy-poster img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.buy-poster-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,0.1);
+    font-size: 0.8rem;
+}
+
+.buy-title {
+    font-size: 1.6rem;
+    font-weight: 900;
+    color: #e63946;
+    text-transform: uppercase;
+    line-height: 1.15;
+    margin-top: 16px;
+    margin-bottom: 14px;
+    letter-spacing: -0.3px;
+}
+
+.buy-meta {
+    margin-bottom: 16px;
+}
+
+.buy-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: rgba(255,255,255,0.65);
+    margin-bottom: 8px;
+}
+
+.buy-meta-row svg {
+    flex-shrink: 0;
+    color: rgba(255,255,255,0.3);
+}
+
+.buy-desc-block {
+    margin-top: 4px;
+}
+
+.buy-section-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.3);
+    margin-bottom: 8px;
+}
+
+.buy-description {
+    font-size: 0.82rem;
+    line-height: 1.7;
+    color: rgba(255,255,255,0.45);
+    white-space: pre-line;
+}
+
+.buy-booking {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 28px 28px;
+    position: sticky;
+    top: 24px;
+}
+
+.buy-section-label.big {
+    font-size: 1.2rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    color: #fff;
+    text-transform: none;
+    margin-bottom: 16px;
+}
+
+.buy-price-box {
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+}
+
+.buy-price-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: rgba(255,255,255,0.5);
+}
+
+.buy-price-val {
+    font-weight: 800;
+    font-size: 1.05rem;
+    color: #fff;
+}
+
+.buy-form-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 14px;
+}
+
+.buy-form {
+    width: 100%;
+}
+
+.buy-name-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.buy-field {
+    margin-bottom: 0;
+}
+
+.buy-field.full {
+    margin-bottom: 12px;
+}
+
+.buy-field-label {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: rgba(255,255,255,0.35);
+    margin-bottom: 5px;
+    letter-spacing: 0.3px;
+}
+
+.buy-field input {
+    width: 100%;
+    padding: 12px 14px;
+    background: #1a1a1a;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    color: #fff;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.buy-field input:focus {
+    border-color: #e63946;
+}
+
+.buy-field input::placeholder {
+    color: rgba(255,255,255,0.22);
+    font-weight: 500;
+}
+
+.buy-error-msg {
+    color: #e63946;
+    font-size: 0.72rem;
+    font-weight: 600;
+    margin-top: 6px;
+    margin-bottom: 4px;
+    display: none;
+}
+
+.buy-error-msg.show {
+    display: block;
+}
+
+.buy-submit {
+    width: 100%;
+    padding: 14px;
+    background: #e63946;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.25s;
+    margin-top: 6px;
+}
+
+.buy-submit:hover {
+    background: #ff4d5a;
+    box-shadow: 0 4px 24px rgba(230, 57, 70, 0.3);
+}
+
+.buy-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.buy-submit:disabled:hover {
+    background: #e63946;
+    box-shadow: none;
+}
+
+@media (max-width: 700px) {
+    .buy-layout {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+    .buy-poster {
+        width: 100%;
+    }
+    .buy-title {
+        font-size: 1.3rem;
+    }
+    .buy-booking {
+        padding: 20px 18px;
+        position: static;
+    }
+    .buy-name-row {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    .buy-field input {
+        font-size: 16px;
+    }
+}
+
+.buy-already {
+    text-align: center;
+    padding: 32px 20px;
+}
+
+.buy-already-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    margin: 0 auto 16px;
+    border: 2px solid rgba(34, 197, 94, 0.3);
+}
+
+.buy-already-text {
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #22c55e;
+    margin-bottom: 16px;
+}
+
+.buy-already-link {
+    display: inline-block;
+    padding: 12px 28px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    color: rgba(255,255,255,0.7);
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.buy-already-link:hover {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+}

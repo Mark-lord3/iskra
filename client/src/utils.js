@@ -13,12 +13,12 @@ export const money = n => '$' + (Math.round(n * 100) / 100).toFixed(n % 1 ? 2 : 
 export const REDUCED = typeof matchMedia !== 'undefined'
   && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-export const tiersFor = e => {
-  const base = e.from || 8;
+export const tiersFor = (e, t = key => key) => {
+  const base = Number.isFinite(Number(e.from)) ? Number(e.from) : 8;
   return [
-    { n:'General admission', d:'Standing, both floors',            p:base },
-    { n:'Early access',      d:'In from 22:00 + free cloakroom',   p:Math.round(base * 1.45) },
-    { n:'Booth table',       d:'Seats four, bottle included',        p:Math.round(base * 6) }
+    { n:t('checkout.general'), d:t('checkout.generalDesc'), p:base },
+    { n:t('checkout.early'), d:t('checkout.earlyDesc'), p:Math.round(base * 1.2) },
+    { n:t('checkout.booth'), d:t('checkout.boothDesc'), p:Math.round(base * 8) }
   ];
 };
 

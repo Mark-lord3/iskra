@@ -4,6 +4,7 @@ const playSchema = new mongoose.Schema({
   score:{type:Number,required:true},
   hits:{type:Number,default:0},
   bestMult:{type:Number,default:1},
+  roundId:{type:String,default:null},   // client round id, used to reject replays
   at:{type:Date,default:Date.now}
 },{_id:false});
 
@@ -19,7 +20,6 @@ const playerSchema = new mongoose.Schema({
   rewardTier:{type:String,default:null},
   rewardCode:{type:String,default:null,index:true},
   rewardRedeemed:{type:Boolean,default:false},
-  isSeed:{type:Boolean,default:false},     // demo players that make the board look alive
   consent:{type:Boolean,default:false}
 },{timestamps:true});
 

@@ -1,46 +1,92 @@
+import { useI18n } from '../i18n.jsx';
 import { pad } from '../utils.js';
 
-export default function Leaderboard({ board, me, attemptsLeft, hasPlayer, onReset }) {
-  const inTop = me && board.some(r => r.id === me.id);
+const fmtWhen = (iso, locale) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString(locale, { day: '2-digit', month: 'short' }) + ' ' +
+         d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+};
+
+function Row({ row, me, label }) {
+  const mine = me && row.id === me.id;
+  return (
+    <div className={'lb-row' + (row.tier ? ' win' : '') + (mine ? ' me' : '')}>
+      <div className="lb-rank">{pad(row.rank)}</div>
+      <div className="lb-id">
+        {/* React escapes this, so a display name can never inject markup. */}
+        <div className="lb-name">{row.handle}</div>
+        <div className="lb-when">{mine ? label.you : fmtWhen(row.achievedAt, label.locale)}</div>
+      </div>
+      <div className="lb-score">{row.score.toLocaleString()}</div>
+    </div>
+  );
+}
+
+/**
+ * Live board. Every row comes from the API: there is no seeded or placeholder
+ * player anywhere in this component.
+ */
+export default function Leaderboard({ board, me, status, online, onRetry, updatedAt }) {
+  const { t, locale } = useI18n();
+  const label = { you: t('arcade.you'), locale };
 
   return (
-    <div className="board rv">
+    <aside className="board" aria-label={t('arcade.liveBoard')}>
       <div className="board-head">
-        <h3>Leaderboard</h3>
-        <span>Top 5 win</span>
-      </div>
-
-      <div className="lb">
-        {board.length === 0 && (
-          <p className="mono" style={{ fontSize: 12, color: 'var(--dim)' }}>No scores yet. Be the first.</p>
-        )}
-        {board.map(row => (
-          <div key={row.id}
-               className={'lb-row' + (row.rank <= 5 ? ' win' : '') + (me && row.id === me.id ? ' me' : '')}>
-            <div className="lb-rank">{pad(row.rank)}</div>
-            <div>
-              <div className="lb-name">{row.handle}</div>
-              <div className="lb-prize">{me && row.id === me.id ? 'You' : row.prize}</div>
-            </div>
-            <div className="lb-score">{row.score.toLocaleString()}</div>
-          </div>
-        ))}
-        {me && !inTop && (
-          <div className="lb-row me" style={{ marginTop: 8 }}>
-            <div className="lb-rank">{pad(me.rank)}</div>
-            <div><div className="lb-name">{me.handle}</div><div className="lb-prize">You</div></div>
-            <div className="lb-score">{me.score.toLocaleString()}</div>
-          </div>
+        <h3>{t('arcade.liveBoard')}</h3>
+        {updatedAt && status === 'ready' && (
+          <span className="board-stamp">{t('arcade.updated')} {fmtWhen(updatedAt, locale)}</span>
         )}
       </div>
 
-      <div className="board-foot">
-        <div>{hasPlayer ? `${attemptsLeft} of 3 attempts left today` : 'Sign up to take your three attempts'}</div>
-        <div>Season closes 20 September. Ties go to the earliest score.</div>
-        {hasPlayer && (
-          <div><button className="link-button" onClick={onReset}>Sign out on this device</button></div>
-        )}
-      </div>
-    </div>
+      {!online && <p className="board-note board-note-warn">{t('arcade.offline')}</p>}
+
+      {status === 'loading' && (
+        <div className="lb lb-skeleton" aria-busy="true" aria-live="polite">
+          <span className="sr-only">{t('common.loading')}</span>
+          {Array.from({ length: 6 }, (_, i) => <div className="lb-ghost" key={i} />)}
+        </div>
+      )}
+
+      {status === 'error' && (
+        <div className="board-state">
+          <p className="board-note board-note-warn">{t('arcade.boardError')}</p>
+          <button className="btn btn-ghost btn-sm" onClick={onRetry}>{t('arcade.retry')}</button>
+        </div>
+      )}
+
+      {status === 'ready' && board.length === 0 && (
+        <div className="board-state">
+          <p className="board-empty-title">{t('arcade.boardEmpty')}</p>
+          <p className="board-note">{t('arcade.boardEmptyCopy')}</p>
+        </div>
+      )}
+
+      {status === 'ready' && board.length > 0 && (
+        <div className="lb">
+          {board.map(row => <Row key={row.id} row={row} me={me} label={label} />)}
+          {me && !me.inTop && me.rank && (
+            <>
+              <div className="lb-split" aria-hidden="true">···</div>
+              <Row row={me} me={me} label={label} />
+            </>
+          )}
+          {me && !me.rank && (
+            <>
+              <div className="lb-split" aria-hidden="true">···</div>
+              <div className="lb-row me">
+                <div className="lb-rank">--</div>
+                <div className="lb-id">
+                  <div className="lb-name">{me.handle}</div>
+                  <div className="lb-when">{t('arcade.unranked')}</div>
+                </div>
+                <div className="lb-score">0</div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </aside>
   );
 }

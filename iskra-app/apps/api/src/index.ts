@@ -40,6 +40,7 @@ async function start() {
     }
   });
 
+  app.set("io", io);
   registerSocketHandlers(io);
   startCleanupJob();
 

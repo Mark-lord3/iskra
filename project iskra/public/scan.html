@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Сканер резервацій - Admin</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='4' fill='%23e63946'/><text x='16' y='23' font-size='20' font-weight='bold' fill='white' text-anchor='middle'>I</text></svg>">
+    <link rel="stylesheet" href="/styles.css?v=2">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { min-height: 100vh; font-family: 'Montserrat', sans-serif; display: flex; flex-direction: column; background: #000; color: #fff; }
+
+        .scan-topbar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 20px;
+            padding-top: calc(14px + env(safe-area-inset-top));
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,0.08); z-index: 10; position: relative;
+        }
+        .scan-topbar h1 { font-size: 1rem; font-weight: 800; color: #f4f6ff; letter-spacing: 0.5px; }
+        .scan-topbar a { color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.82rem; font-weight: 600; transition: color 0.2s; }
+        .scan-topbar a:hover { color: #ffd700; }
+
+        #authGuard {
+            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 40px 20px; text-align: center;
+        }
+        #authGuard p { color: rgba(255,255,255,0.5); font-size: 0.9rem; margin-bottom: 20px; }
+        #authGuard a {
+            padding: 13px 28px; border-radius: 12px; border: 1px solid #ffd700;
+            background: rgba(255,215,0,0.12); color: #ffd700; text-decoration: none;
+            font-weight: 700; font-size: 0.9rem; transition: all 0.2s;
+        }
+        #authGuard a:hover { background: rgba(255,215,0,0.25); }
+
+        .scan-layout { display: flex; flex: 1; overflow: hidden; }
+
+        .scan-camera-col {
+            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 20px; background: rgba(0,0,0,0.3); position: relative; min-height: 350px;
+        }
+        .scan-hint { text-align: center; color: rgba(255,255,255,0.35); font-size: 0.82rem; margin-top: 14px; font-weight: 500; }
+
+        #qr-reader { border: none !important; width: 100% !important; max-width: 400px; }
+        #qr-reader video { border-radius: 12px; }
+        #qr-reader img { display: none !important; }
+        #qr-reader__dashboard_section_csr { display: none !important; }
+        #qr-reader__dashboard_section_swaplink { display: none !important; }
+        #qr-reader__scan_region { min-height: 250px; border: none !important; }
+        #qr-reader__dashboard_section { display: none !important; }
+        #qr-reader__header_message { display: none !important; }
+        #qr-reader__status_span { display: none !important; }
+        #qr-reader__camera_selection { display: none !important; }
+
+        .scan-result-col {
+            width: 380px; border-left: 1px solid rgba(255,255,255,0.08);
+            padding: 24px 20px; background: rgba(0,0,0,0.4);
+            display: flex; flex-direction: column; overflow-y: auto;
+        }
+
+        .manual-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.35); margin-bottom: 10px; text-align: center; }
+        .manual-row { display: flex; gap: 8px; margin-bottom: 24px; }
+        .manual-row input {
+            flex: 1; padding: 13px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.06); color: #fff; font-size: 0.9rem; font-family: monospace;
+            outline: none; transition: border-color 0.2s;
+        }
+        .manual-row input::placeholder { color: rgba(255,255,255,0.25); }
+        .manual-row input:focus { border-color: rgba(255,215,0,0.5); }
+        .manual-row button {
+            padding: 13px 22px; border-radius: 12px; border: 1px solid #ffd700;
+            background: rgba(255,215,0,0.12); color: #ffd700; cursor: pointer; font-weight: 700;
+            font-family: 'Montserrat', sans-serif; font-size: 0.88rem; white-space: nowrap; transition: all 0.2s;
+        }
+        .manual-row button:hover { background: rgba(255,215,0,0.25); }
+
+        .result-alert {
+            padding: 16px; border-radius: 14px; margin-bottom: 16px;
+            font-weight: 700; font-size: 0.95rem; animation: fadeInUp 0.25s ease;
+        }
+        .result-alert.valid   { background: rgba(255,80,80,0.12);  color: #ff8585; border: 1px solid rgba(255,80,80,0.25); }
+        .result-alert.invalid { background: rgba(255,80,80,0.12);  color: #ff8585; border: 1px solid rgba(255,80,80,0.25); }
+        .result-alert.used    { background: rgba(0,200,83,0.12); color: #5fe0a0; border: 1px solid rgba(0,200,83,0.25); }
+        .result-alert small { display: block; font-weight: 400; font-size: 0.8rem; opacity: 0.7; margin-top: 3px; }
+
+        .result-card {
+            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px; padding: 18px; animation: fadeInUp 0.25s ease 0.05s both;
+        }
+        .result-field { margin-bottom: 14px; }
+        .result-field:last-child { margin-bottom: 0; }
+        .result-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.35); margin-bottom: 3px; }
+        .result-value { font-size: 0.92rem; font-weight: 600; color: #f4f6ff; }
+        .result-value.mono { font-family: monospace; font-size: 0.8rem; letter-spacing: 0.5px; }
+
+        .result-btn {
+            width: 100%; padding: 14px; border: 0; border-radius: 12px;
+            font-weight: 800; font-size: 0.95rem; cursor: pointer; margin-top: 14px;
+            font-family: 'Montserrat', sans-serif; transition: all 0.2s;
+        }
+        .result-btn.redeem { background: #00c853; color: #fff; }
+        .result-btn.redeem:hover { background: #00e676; }
+        .result-btn.redeem:disabled { background: rgba(0,200,83,0.25); cursor: not-allowed; }
+        .result-btn.next {
+            background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+            color: #f4f6ff; margin-top: 10px;
+        }
+        .result-btn.next:hover { background: rgba(255,255,255,0.1); }
+
+        .waiting-state { text-align: center; padding: 40px 20px; color: rgba(255,255,255,0.3); }
+        .spinner {
+            display: inline-block; width: 28px; height: 28px; border: 3px solid rgba(255,255,255,0.08);
+            border-top-color: #ffd700; border-radius: 50%; animation: spin 0.7s linear infinite; margin-bottom: 12px;
+        }
+        .empty-result { text-align: center; padding: 50px 20px; color: rgba(255,255,255,0.2); }
+        .empty-result svg { margin-bottom: 12px; opacity: 0.3; }
+
+        .camera-error-box { text-align: center; padding: 30px 20px; max-width: 360px; }
+        .camera-error-box h2 { color: #ff8585; font-size: 1rem; margin-bottom: 8px; font-weight: 700; }
+        .camera-error-box p { color: rgba(255,255,255,0.45); font-size: 0.85rem; margin-bottom: 18px; line-height: 1.5; }
+        .camera-error-box button {
+            padding: 12px 28px; border-radius: 12px; border: 1px solid #ffd700;
+            background: rgba(255,215,0,0.12); color: #ffd700; cursor: pointer; font-weight: 700;
+            font-family: 'Montserrat', sans-serif; font-size: 0.88rem; transition: all 0.2s;
+        }
+        .camera-error-box button:hover { background: rgba(255,215,0,0.25); }
+
+        .redeem-success {
+            padding: 20px; border-radius: 14px; text-align: center;
+            background: rgba(0,200,83,0.14); border: 1px solid rgba(0,200,83,0.3);
+            animation: fadeInUp 0.25s ease;
+        }
+        .redeem-success .check { font-size: 2.5rem; line-height: 1; margin-bottom: 10px; }
+        .redeem-success h3 { color: #5fe0a0; font-size: 1.1rem; font-weight: 800; margin-bottom: 4px; }
+        .redeem-success p { color: rgba(255,255,255,0.5); font-size: 0.82rem; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        @media (max-width: 768px) {
+            .scan-layout { flex-direction: column; }
+            .scan-camera-col { min-height: 300px; }
+            .scan-result-col { width: 100%; border-left: none; border-top: 1px solid rgba(255,255,255,0.08); }
+        }
+    </style>
+</head>
+<body>
+    <div class="ukraine-pattern"></div>
+    <div class="canada-pattern"></div>
+
+    <div class="scan-topbar">
+        <h1>Сканер резервацій</h1>
+        <a href="/admin">← Адмінка</a>
+    </div>
+
+    
+    <div id="authGuard" style="display:none;">
+        <p>Для доступу до сканера потрібно увійти як адміністратор.</p>
+        <a href="/admin">Увійти в адмінку</a>
+    </div>
+
+    
+    <div class="scan-layout" id="scanLayout" style="display:none;">
+        <div class="scan-camera-col" id="cameraCol">
+            <div id="qr-reader"></div>
+            <p class="scan-hint" id="scanHint">Наведіть камеру на QR-код</p>
+        </div>
+        <div class="scan-result-col" id="resultCol">
+            <div id="resultArea">
+                <div class="empty-result" id="emptyState">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48">
+                        <path d="M3 7V5a2 2 0 012-2h2M3 17v2a2 2 0 002 2h2M17 3h2a2 2 0 012 2v2M17 21h2a2 2 0 002-2v-2"></path>
+                        <rect x="7" y="7" width="10" height="10" rx="1"></rect>
+                    </svg>
+                    <p style="font-size:0.88rem;">Очікування сканування...</p>
+                </div>
+                <div class="manual-label">Або введіть код вручну</div>
+                <div class="manual-row">
+                    <input id="manualInput" placeholder="TKT-XXXXXXXXXXXXXXXX" autocomplete="off" spellcheck="false">
+                    <button id="manualBtn">Знайти</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/html5-qrcode.min.js?v=6"></script>
+    <script src="/js/scan.js?v=6"></script>
+</body>
+</html>

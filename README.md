@@ -29,7 +29,10 @@ Open http://localhost:5173
 URI ends in **`/iskra_promo`** — a dedicated database. Nothing here reads or writes
 `applybycazamio`, `noveradatasolutions`, `noveraproperties`, or `test`.
 
-Collections: `events`, `players`, `promocodes`, `subscribers`, `orders`.
+Collections include `events`, `tickets`, `eventfeedbacks`, `galleryitems`, `sitesettings`,
+`players`, `promocodes`, `subscribers`, `orders`, `contactmessages`, `analyticsevents`,
+`users`, `usersessions`, `accounttokens`, `memberships`, `campaigns`,
+`campaignexposures`, and `consentevents`.
 
 `.env` is gitignored. **Rotate the Atlas password** — the current one was shared in plain text.
 
@@ -96,7 +99,43 @@ checkout. A player's earned tier is never downgraded if others overtake them.
 | GET  | `/api/leaderboard` | Top 10 (+ the caller's own row) |
 | POST | `/api/promo/validate` | Validates campaign and prize codes |
 | POST | `/api/subscribe` | Newsletter |
-| POST | `/api/orders` | Demo checkout — records intent, takes no payment |
+| POST | `/api/tickets/checkout` | Create a server-priced Stripe Checkout Session |
+| GET | `/api/tickets/checkout/complete` | Verify payment and restore issued QR tickets |
+| POST | `/api/tickets/webhook` | Fulfill paid Stripe Checkout Sessions |
+| POST | `/api/tickets/wallet` | Restore tickets using references plus device tokens |
+| POST | `/api/feedback` | Submit post-event feedback tied to a valid ticket |
+| GET | `/api/gallery` | Public admin-managed gallery records |
+| GET | `/api/site-status` | Public announcement and event status |
+| POST | `/api/account/register` | Create an account and send verification |
+| POST | `/api/account/login` | Start an HTTP-only customer session |
+| GET | `/api/account/overview` | Read only the signed-in customer's portal data |
+| POST | `/api/account/membership/checkout` | Start Stripe membership Checkout |
+| POST | `/api/account/membership/portal` | Open the Stripe Billing Portal |
+| POST | `/api/campaigns/consent` | Record a first-party privacy choice |
+| GET | `/api/campaigns/next` | Select a consented, frequency-capped campaign |
+
+The customer portal is at `/account`. Customer sessions are hashed in MongoDB, delivered in
+HTTP-only same-site cookies, and mutation routes require the session CSRF token. Tickets and
+orders are selected by the authenticated `userId`; client-provided owner IDs are never trusted.
+
+The dashboard is at `/admin` and uses the server-issued admin session from `/api/auth/login`.
+The bouncer experience is separately permissioned at `/staff/scan`; scanner sessions cannot
+access admin or customer APIs. Customer QR tickets saved on a device remain available at
+`/tickets` and can be claimed by a verified account with matching private ticket credentials.
+
+## Customer lifecycle
+
+- Registration, login, logout, email verification, password reset, profile preferences, saved
+  events, and deletion are server-backed and localized in EN, UK, and RU.
+- Guest checkout remains supported. Verified accounts claim prior orders only when the purchase
+  email matches; local tickets additionally require their private device access token.
+- Paid memberships use Stripe Customers, subscription Checkout, Billing Portal, and verified
+  webhook state. Newsletter consent remains separate from paid membership state.
+- Acquisition campaigns use a signed first-party visitor cookie and a server exposure ledger.
+  Optional consent is checked on the server, GPC/DNT suppress selection, anonymous visitors are
+  capped at five impressions, and converted or repeatedly dismissed campaigns stay suppressed.
+- The lifecycle email registry contains 50 logical templates with complete EN/UK/RU contracts.
+  Verification, reset, welcome, and ticket delivery already send through Resend idempotently.
 
 ## Before launch
 
@@ -104,9 +143,31 @@ checkout. A player's earned tier is never downgraded if others overtake them.
 2. Replace the placeholder content — events are in `server/src/seed.js`; venue, stats and
    footer copy are in `client/src/components/`.
 3. Remove the demo leaderboard players: `db.players.deleteMany({ isSeed: true })`.
-4. Wire real payment into `POST /api/orders` — it currently only records the order.
-5. Email delivery for prize codes is not built; codes are shown in the browser only.
-6. Set `CLIENT_ORIGIN=https://iskra.orvadora.com` in production.
+4. Add `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, and
+   `STRIPE_MEMBERSHIP_PRICE_ID`, `RESEND_API_KEY`, `VISITOR_SIGNING_SECRET`,
+   `SCANNER_SECRET`, and `SCANNER_PASSCODE` to `server/.env`, then register
+   `https://iskra.orvadora.com/api/tickets/webhook` in Stripe for
+   `checkout.session.completed`, `checkout.session.async_payment_succeeded`, and
+   `checkout.session.expired` events.
+   Set `RESEND_FROM` if the verified sender differs from
+   `Project ISKRA <noreply@projekt-iskra.com>`. Paid and free orders send every QR code
+   inline and as a PNG attachment using one idempotent email per order.
+5. Configure the Stripe Customer Portal and include subscription create/update/delete events in
+   the same webhook endpoint.
+6. Email delivery for prize codes is not built; codes are shown in the browser only.
+7. Set `CLIENT_ORIGIN=https://iskra.orvadora.com` in production.
+
+## Release and rollback
+
+Run `npm run build --prefix client` and `npm test --prefix server` before every release. The seed
+uses idempotent upserts for managed records; it does not delete paid orders, tickets, users, or
+consent history. New collections are additive, so no destructive migration is required.
+
+Before production deployment, take an Atlas snapshot and record the current Git commit and image
+tag. To roll back, deploy the prior commit/container without running the seed. Existing additive
+collections can remain in place because older code does not read them. Never roll back Stripe
+webhook data by deleting MongoDB records; replay verified Stripe events after restoring application
+code if subscription synchronization needs repair.
 
 ## Deploying to iskra.orvadora.com
 

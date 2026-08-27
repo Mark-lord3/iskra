@@ -1,7 +1,6 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
 import { Event } from "../models/Event";
-import { EventProfile } from "../models/EventProfile";
 import { Venue } from "../models/Venue";
 import { getCleanupAt } from "../services/cleanup-service";
 
@@ -14,15 +13,10 @@ export async function listVenueLanding(req: Request, res: Response) {
   }
 
   const venue = await Venue.findById(event.venueId).lean();
-  const avatars = await EventProfile.find({ eventId: event._id })
-    .select("photos displayName intentions")
-    .limit(8)
-    .lean();
-
   res.json({
     event,
     venue,
-    avatars
+    avatars: []
   });
 }
 
@@ -48,4 +42,3 @@ export async function createEvent(req: Request, res: Response) {
 
   res.status(201).json(event);
 }
-

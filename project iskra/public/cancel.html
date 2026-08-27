@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Оплату скасовано - Project Iskra</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='4' fill='%23e63946'/><text x='16' y='23' font-size='20' font-weight='bold' fill='white' text-anchor='middle'>I</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/buy.css?v=2">
+    <style>
+        .cancel-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 48px 36px;
+            text-align: center;
+        }
+        .cancel-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+        }
+        .cancel-title {
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+        .cancel-desc {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 28px;
+            line-height: 1.6;
+        }
+        .cancel-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .cancel-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            text-decoration: none;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            border-radius: 4px;
+            transition: all 0.25s;
+        }
+        .cancel-btn-primary {
+            background: #e63946;
+            color: #fff;
+            border: 2px solid #e63946;
+        }
+        .cancel-btn-primary:hover { background: #ff4d5a; border-color: #ff4d5a; }
+        .cancel-btn-ghost {
+            background: transparent;
+            color: rgba(255,255,255,0.5);
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+        .cancel-btn-ghost:hover { border-color: rgba(255,255,255,0.3); color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="buy-page">
+        <a href="/" class="back-link">&larr; Назад</a>
+        <div class="cancel-card">
+            <div class="cancel-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" width="28" height="28"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </div>
+            <div class="cancel-title">Оплату скасовано</div>
+            <div class="cancel-desc">Ви не завершили оплату.<br>Нічого не списано.</div>
+            <div class="cancel-actions">
+                <a href="/" class="cancel-btn cancel-btn-ghost">НА ГОЛОВНУ</a>
+                <a href="/#events" class="cancel-btn cancel-btn-primary">СПРОБУВАТИ ЗНОВУ</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

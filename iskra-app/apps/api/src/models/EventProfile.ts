@@ -9,6 +9,8 @@ const eventProfileSchema = new Schema(
     bio: { type: String },
     intentions: [{ type: String }],
     photos: [{ type: String }],
+    competitionEligible: { type: Boolean, default: false },
+    competitionConsentAt: { type: Date },
     promptAnswer: { type: String },
     visibility: {
       type: String,
@@ -22,5 +24,7 @@ const eventProfileSchema = new Schema(
   { timestamps: true }
 );
 
-export const EventProfile = model("EventProfile", eventProfileSchema);
+eventProfileSchema.index({ eventId: 1, userId: 1 }, { unique: true });
+eventProfileSchema.index({ eventId: 1, visibility: 1, updatedAt: -1 });
 
+export const EventProfile = model("EventProfile", eventProfileSchema);

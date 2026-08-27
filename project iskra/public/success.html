@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Квиток придбано - Project Iskra</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='4' fill='%23e63946'/><text x='16' y='23' font-size='20' font-weight='bold' fill='white' text-anchor='middle'>I</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/buy.css?v=2">
+    <style>
+        .success-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 48px 36px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .success-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: rgba(0,208,96,0.12);
+            border: 2px solid rgba(0,208,96,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+        }
+        .success-icon svg { width: 28px; height: 28px; }
+        .success-title {
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+        .success-desc {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 28px;
+            line-height: 1.6;
+        }
+        .ticket-code {
+            display: inline-block;
+            padding: 10px 24px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: #e63946;
+            margin-bottom: 24px;
+        }
+        .success-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 32px;
+            background: transparent;
+            border: 2px solid #e63946;
+            color: #e63946;
+            text-decoration: none;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            border-radius: 4px;
+            transition: all 0.25s;
+        }
+        .success-btn:hover {
+            background: #e63946;
+            color: #fff;
+        }
+        .qr-wrapper {
+            display: block;
+            background: #ffffff;
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .qr-wrapper img {
+            display: block;
+            width: 260px;
+            height: 260px;
+            image-rendering: pixelated;
+        }
+        .success-btns {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        @media (max-width: 400px) {
+            .qr-wrapper { padding: 12px; }
+            .qr-wrapper img { width: 200px; height: 200px; }
+            .success-card { padding: 32px 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="buy-page">
+        <a href="/" class="back-link">&larr; Назад на головну</a>
+        <div class="success-card" id="successCard">
+            <div class="buy-loading">Завантаження...</div>
+        </div>
+    </div>
+    <script src="/js/success.js?v=2"></script>
+</body>
+</html>

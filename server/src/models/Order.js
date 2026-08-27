@@ -1,13 +1,25 @@
 import mongoose from 'mongoose';
-// Demo orders — no payment is processed. Records what a checkout would have created.
 export default mongoose.model('Order', new mongoose.Schema({
   eventSlug:{type:String,required:true},
   tier:{type:String,required:true},
-  qty:{type:Number,required:true,min:1,max:10},
+  tierKey:{type:String,default:'general'},
+  qty:{type:Number,required:true,min:1,max:20},
   subtotal:{type:Number,required:true},
   total:{type:Number,required:true},
   code:{type:String,default:null},
   playerId:{type:mongoose.Schema.Types.ObjectId,ref:'Player',default:null},
+  userId:{type:mongoose.Schema.Types.ObjectId,ref:'User',default:null,index:true},
   email:{type:String,default:null},
-  status:{type:String,default:'demo'}
+  buyerName:{type:String,default:''},
+  locale:{type:String,enum:['en','uk','ru'],default:'en'},
+  currency:{type:String,default:'cad'},
+  stripeSessionId:{type:String,index:true,unique:true,sparse:true},
+  paymentIntentId:{type:String,default:null},
+  paymentStatus:{type:String,default:'unpaid'},
+  emailStatus:{type:String,enum:['pending','sending','sent','failed','skipped'],default:'pending',index:true},
+  emailId:{type:String,default:null},
+  emailError:{type:String,default:null},
+  emailAttemptedAt:{type:Date,default:null},
+  emailSentAt:{type:Date,default:null},
+  status:{type:String,default:'pending',index:true}
 },{timestamps:true}));

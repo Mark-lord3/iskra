@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import Logo from './Logo.jsx';
+import LanguageSwitcher from './LanguageSwitcher.jsx';
+import {useI18n} from '../i18n.jsx';
 
 const LINKS = [
-  ['/schedule', 'Schedule'], ['/offers', 'Offers'], ['/play', 'Play for Tickets'],
-  ['/about', 'About'], ['/contact', 'Contact']
+  ['/schedule','nav.schedule'],['/gallery','nav.gallery'],['/offers','nav.offers'],['/play','nav.play'],
+  ['/about','nav.about'],['/partners','nav.partners'],['/contact','nav.contact'],['/account','nav.account']
 ];
 
 export default function Nav({ onTickets }) {
+  const {t}=useI18n();
   const [stuck, setStuck] = useState(false);
   const [open, setOpen] = useState(false);
   const sentinel = useRef(null);
@@ -28,7 +31,7 @@ export default function Nav({ onTickets }) {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const onKey = e => { if (e.key === 'Escape') setOpen(false); };
-    const onResize = () => { if (window.innerWidth > 860) setOpen(false); };
+    const onResize = () => { if (window.innerWidth > 1100) setOpen(false); };
     window.addEventListener('keydown', onKey);
     window.addEventListener('resize', onResize);
     return () => {
@@ -45,22 +48,25 @@ export default function Nav({ onTickets }) {
         <div className="wrap">
           <a href="/" className="logo"><Logo />ISKRA</a>
           <div className="navlinks">
-            {LINKS.map(([href, label]) => <a key={href} href={href}>{label}</a>)}
+            {LINKS.map(([href, key]) => <a key={href} href={href}>{t(key)}</a>)}
           </div>
-          <button className="btn btn-primary btn-sm" onClick={() => onTickets('next')}>Get tickets</button>
+          <LanguageSwitcher />
+          <button className="btn btn-primary btn-sm" onClick={() => onTickets('next')}>{t('nav.getTickets')}</button>
           <button className={'burger' + (open ? ' open' : '')}
-                  aria-label={open ? 'Close menu' : 'Open menu'}
+                  aria-label={open ? t('nav.close') : t('nav.open')}
                   aria-expanded={open} aria-controls="mobilemenu"
                   onClick={() => setOpen(o => !o)}><span /></button>
         </div>
+
+        <div id="mobilemenu" className={'mobilemenu' + (open ? ' open' : '')}>
+          <LanguageSwitcher className="language-switcher-mobile" />
+          {LINKS.map(([href, key]) => (
+            <a key={href} href={href} onClick={() => setOpen(false)}>{t(key)}</a>
+          ))}
+          <button className="btn btn-primary" style={{ marginTop: 18 }}
+                  onClick={() => { setOpen(false); onTickets('next'); }}>{t('nav.getTickets')}</button>
+        </div>
       </nav>
-      <div id="mobilemenu" className={'mobilemenu' + (open ? ' open' : '')}>
-        {LINKS.map(([href, label]) => (
-          <a key={href} href={href} onClick={() => setOpen(false)}>{label}</a>
-        ))}
-        <button className="btn btn-primary" style={{ marginTop: 18 }}
-                onClick={() => { setOpen(false); onTickets('next'); }}>Get tickets</button>
-      </div>
     </>
   );
 }
