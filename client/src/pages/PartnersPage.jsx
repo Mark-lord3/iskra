@@ -7,19 +7,24 @@ import { useI18n } from '../i18n.jsx';
    handle and one line about their work. No figures or claims are added. */
 const CREATORS = [
   {
-    name:'Glory Molly Prod',
-    handle:'@glorymollyprod',
-    url:'https://www.instagram.com/glorymollyprod/',
-    image:'/partners/creators/glorymollyprod.jpg',
+    name:'Glory Molly Prod + KiddyGold82',
+    nameLines:['Glory Molly Prod','KiddyGold82'],
+    profiles:[
+      { handle:'@glorymollyprod', url:'https://www.instagram.com/glorymollyprod/' },
+      { handle:'@kiddygold82', url:'https://www.instagram.com/kiddygold82/' }
+    ],
+    image:'/partners/creators/glorymollyprod-kiddygold82.jpg',
     copyKey:'partners.gloryCopy',
     altKey:'partners.gloryAlt',
-    // Lifts the crop so both faces stay inside the circle.
-    focus:'50% 42%'
+    // Keeps both collaborators visible inside the circular crop.
+    focus:'50% 48%'
   },
   {
     name:'Migrant Shop',
-    handle:'@migrant.shop',
-    url:'https://www.instagram.com/migrant.shop/',
+    nameLines:['Migrant Shop'],
+    profiles:[
+      { handle:'@migrant.shop', url:'https://www.instagram.com/migrant.shop/' }
+    ],
     image:'/partners/creators/migrant-shop.jpg',
     copyKey:'partners.migrantCopy',
     altKey:'partners.migrantAlt',
@@ -78,38 +83,48 @@ export default function PartnersPage({ onTickets }) {
           </header>
           <ul className="partners-creators-grid">
             {CREATORS.map((creator, index) => (
-              <li key={creator.handle} className="partner-creator" style={{ '--i': index }}>
-                {/* The whole card is one link, so the image, the name and the
-                    call to action all reach Instagram by mouse or keyboard. */}
-                <a className="partner-creator-link"
-                   href={creator.url} target="_blank" rel="noopener noreferrer">
+              <li key={creator.name} className="partner-creator" style={{ '--i': index }}>
+                <article className="partner-creator-link">
                   {/* Ring and portrait share one box, so they stay concentric
                       at every width instead of drifting into separate cells. */}
-                  <span className="partner-creator-avatar">
-                    <span className="partner-creator-ring" aria-hidden="true" />
-                    <span className="partner-creator-photo">
-                      <img src={creator.image} alt={t(creator.altKey)} loading="lazy"
-                           width="900" height="900" style={{ objectPosition: creator.focus }} />
-                    </span>
+                  <a className="partner-creator-avatar" href={creator.profiles[0].url}
+                     target="_blank" rel="noopener noreferrer" aria-label={creator.profiles[0].handle}>
+                      <span className="partner-creator-ring" aria-hidden="true" />
+                      <span className="partner-creator-photo">
+                        <img src={creator.image} alt={t(creator.altKey)} loading="lazy"
+                             width="900" height="900" style={{ objectPosition: creator.focus }} />
+                      </span>
+                  </a>
+                  <b className="partner-creator-name">
+                    {creator.nameLines.map((line) => <span key={line}>{line}</span>)}
+                  </b>
+                  <span className="partner-creator-handles mono">
+                    {creator.profiles.map((profile) => (
+                      <a key={profile.handle} href={profile.url} target="_blank"
+                         rel="noopener noreferrer">{profile.handle}</a>
+                    ))}
+                  </span>
+                  <span className="partner-creator-copy">{t(creator.copyKey)}</span>
+                  <span className="partner-creator-actions">
+                    {creator.profiles.map((profile) => (
+                      <a className="partner-creator-cta" key={profile.handle} href={profile.url}
+                         target="_blank" rel="noopener noreferrer">
+                        {t('partners.viewInstagram')}
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                          <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
+                          <circle cx="12" cy="12" r="4" />
+                          <circle cx="17.2" cy="6.8" r="1.2" className="dot" />
+                        </svg>
+                        <i aria-hidden="true">↗</i>
+                      </a>
+                    ))}
                   </span>
                   {/* Each row below is its own grid track: name, handle, then
                       the description on a flexible track and the call to action
                       last. The flexible track absorbs the difference between a
                       short line and a long one, so the buttons stay level
                       however the copy is translated. */}
-                  <b className="partner-creator-name">{creator.name}</b>
-                  <span className="partner-creator-handle mono">{creator.handle}</span>
-                  <span className="partner-creator-copy">{t(creator.copyKey)}</span>
-                  <span className="partner-creator-cta">
-                    {t('partners.viewInstagram')}
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                      <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
-                      <circle cx="12" cy="12" r="4" />
-                      <circle cx="17.2" cy="6.8" r="1.2" className="dot" />
-                    </svg>
-                    <i aria-hidden="true">↗</i>
-                  </span>
-                </a>
+                </article>
               </li>
             ))}
           </ul>
@@ -140,6 +155,28 @@ export default function PartnersPage({ onTickets }) {
         </div>
       </section>
 
+
+      <section className="partners-v2-wellness">
+        <div className="wrap partners-wellness-grid">
+          {/* Purpose-built digital artwork rather than the photographed card. */}
+          <figure className="partners-wellness-art">
+            <img src="/partners/magic-hands-abstract.png" alt={t('partners.wellnessAlt')}
+                 width="900" height="600" loading="lazy" />
+          </figure>
+
+          <div className="partners-wellness-copy">
+            <p className="partners-wellness-role mono">{t('partners.wellnessRole')}</p>
+            <h2>MAGIC HANDS</h2>
+            <p className="partners-wellness-tagline">{t('partners.wellnessTagline')}</p>
+            <p className="partners-wellness-person">
+              <span className="mono">{t('partners.wellnessPractitioner')}</span>
+              <b>Sergii Karnaukh</b>
+            </p>
+            <span className="partners-wellness-body">{t('partners.wellnessCopy')}</span>
+            <p className="partners-wellness-motto">{t('partners.wellnessMotto')}</p>
+          </div>
+        </div>
+      </section>
     </main>
     <Footer />
   </>;

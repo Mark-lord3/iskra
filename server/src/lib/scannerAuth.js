@@ -1,11 +1,10 @@
 import crypto from 'node:crypto';
 import ScannerSession from '../models/ScannerSession.js';
+import { scannerSigningSecret } from '../config/security.js';
 
 /* Invites are signed with a dedicated secret so a leaked admin key alone
    cannot mint door access, and vice versa. */
-const secret = () =>
-  process.env.SCANNER_SECRET ||
-  crypto.createHash('sha256').update('scanner:' + (process.env.ADMIN_KEY || 'iskra-local-admin')).digest('hex');
+const secret = scannerSigningSecret;
 
 export const hashToken = raw => crypto.createHash('sha256').update(String(raw)).digest('hex');
 
@@ -24,7 +23,7 @@ export function readInvite(token){
   if(a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
   try{
     const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
-    if(!payload.exp || payload.exp < Date.now()) return null;
+    if(!payload.jti || !payload.exp || payload.exp < Date.now()) return null;
     return payload;
   }catch{ return null; }
 }
@@ -33,6 +32,7 @@ export function readInvite(token){
 export function createInvite({ label, eventSlug = null, ttlMinutes = 30, sessionDays = 3 }){
   return sign({
     v: 1,
+    jti: crypto.randomBytes(18).toString('base64url'),
     label: String(label || 'Door device').slice(0, 60),
     eventSlug: eventSlug || null,
     sessionDays: Math.min(30, Math.max(1, Number(sessionDays) || 3)),

@@ -10,6 +10,13 @@ import { useReducedMotion, usePageVisible } from '../hooks/useMotionPrefs.js';
  * lobby, the signed-in account, the player's own saved Spark Rush record — so
  * a chip that says LIVE is saying something true rather than decorative.
  */
+/**
+ * Poker is built and reachable at /play/poker, but it is not being promoted
+ * from the hub yet. Flip this to true to put the portal back to a live link
+ * carrying its real tournament status.
+ */
+const POKER_LIVE = false;
+
 export default function GameHub(){
   const { t } = useI18n();
   const reduced = useReducedMotion();
@@ -88,16 +95,22 @@ export default function GameHub(){
             ready={ready} reduced={reduced} />
 
           <Portal
-            kind="poker" index={1} href="/play/poker"
+            kind="poker" index={1}
+            {...(POKER_LIVE ? { href:'/play/poker' } : { disabled:true })}
             tag={t('hub.pokerTag')} line1={t('hub.pokerTitle1')} line2={t('hub.pokerTitle2')}
-            copy={t('hub.pokerCopy')} cta={t('hub.pokerCta')}
-            chips={openCount > 0
+            copy={t('hub.pokerCopy')}
+            cta={POKER_LIVE ? t('hub.pokerCta') : t('hub.soonCta')}
+            chips={!POKER_LIVE
+              ? [{ label:t('hub.chipSoon'), tone:'soon' },
+                 { label:t('hub.chipFree'), tone:'quiet' }]
+              : openCount > 0
               ? [{ label:t('hub.chipLive'), tone:'live' },
                  { label:t('hub.chipAccount'), tone:'quiet' },
                  { label:t('hub.chipFree'), tone:'quiet' }]
               : [{ label:t('hub.chipDemo'), tone:'demo' },
                  { label:t('hub.chipFree'), tone:'quiet' }]}
-            status={!ready ? t('hub.loadingStatus')
+            status={!POKER_LIVE ? t('hub.soonStatus')
+              : !ready ? t('hub.loadingStatus')
               : openCount > 0 ? countLabel(t, 'hub.openTournaments', openCount)
               : runningCount > 0 ? countLabel(t, 'hub.runningTournaments', runningCount)
               : t('hub.demoOnly')}

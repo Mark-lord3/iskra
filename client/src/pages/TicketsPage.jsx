@@ -86,7 +86,7 @@ export default function TicketsPage({onTickets}){
             {tickets.map(ticket=>(
               <article className={`wallet-ticket ${ticket.status}`} key={ticket.reference}>
                 <div className="wallet-ticket-top">
-                  <span className="wallet-status">{ticket.status === 'redeemed' ? t('common.redeemed') : ticket.status === 'cancelled' ? t('common.cancelled') : t('common.valid')}</span>
+                  <span className="wallet-status">{ticket.admissionValid===false?t('tickets.tableOnly'):ticket.status === 'redeemed' ? t('common.redeemed') : ticket.status === 'cancelled' ? t('common.cancelled') : t('common.valid')}</span>
                   <code>{ticket.reference}</code>
                 </div>
                 <div className="wallet-qr"><img src={ticket.qrDataUrl} alt={t('tickets.qrAlt',{reference:ticket.reference})} /></div>
@@ -94,6 +94,7 @@ export default function TicketsPage({onTickets}){
                   <span className="eyebrow">{formatDate(ticket.eventDate,{weekday:'long',month:'long',day:'numeric'})}</span>
                   <h2>{ticket.eventTitle}</h2>
                   <p>{ticket.room} · {ticket.tier}</p>
+                  {ticket.admissionValid===false&&<p className="wallet-admission-warning">{t('tickets.tableNeedsEntry')}</p>}
                   <div><span>{ticket.buyerName}</span><b>{ticket.price ? money(ticket.price) : t('common.reserved')}</b></div>
                   {(ticket.status === 'redeemed' || new Date(ticket.eventDate) <= new Date()) && (
                     <FeedbackForm ticket={ticket} accessToken={credentials.find(item=>item.reference === ticket.reference)?.accessToken} />

@@ -2,15 +2,66 @@ import Event from '../models/Event.js';
 import ArcadeContest from '../models/ArcadeContest.js';
 import ArcadeEntry from '../models/ArcadeEntry.js';
 import Player from '../models/Player.js';
+import SiteSetting from '../models/SiteSetting.js';
 import {claimCode,prizeForRank} from './prizes.js';
 import {sendArcadeResultEmail} from '../services/arcadeEmail.js';
 
 export const CUTOFF_DAYS=7;
+export const PENDING_EVENT_SLUG='__next-iskra-event__';
+const PENDING_EVENT_DATE=new Date('2100-01-01T00:00:00.000Z');
 export const contestCloseAt=date=>new Date(new Date(date).getTime()-CUTOFF_DAYS*86400_000);
+export const hasOpenContestWindow=(eventDate,now=new Date())=>contestCloseAt(eventDate)>now;
+
+export async function arcadeSettings(){
+  const row=await SiteSetting.findOne({key:'spark-rush'}).lean();
+  return {
+    enabled:row?.value?.enabled!==false,
+    minParticipants:Math.min(50,Math.max(30,Number(row?.value?.minParticipants)||30))
+  };
+}
+
+async function pendingContest(settings,now){
+  return ArcadeContest.findOneAndUpdate(
+    {eventSlug:PENDING_EVENT_SLUG},
+    {$set:{
+      eventTitle:'Next Project ISKRA event',eventDate:PENDING_EVENT_DATE,
+      closesAt:PENDING_EVENT_DATE,minParticipants:settings.minParticipants,status:'open'
+    },$setOnInsert:{opensAt:now,participantCount:0}},
+    {upsert:true,new:true}
+  );
+}
+
+/** Attach the live pre-schedule board without changing its id. ArcadeEntry
+ * references therefore remain valid and every score follows the contest. */
+async function attachPendingContest(event,now){
+  const pending=await ArcadeContest.findOne({eventSlug:PENDING_EVENT_SLUG,status:'open'});
+  if(!pending)return null;
+  const existing=await ArcadeContest.findOne({eventSlug:event.slug});
+  if(existing)return null;
+  pending.eventSlug=event.slug;
+  pending.eventTitle=event.title;
+  pending.eventDate=event.date;
+  pending.closesAt=contestCloseAt(event.date);
+  pending.minParticipants=Math.min(50,Math.max(30,Number(event.arcadeMinParticipants)||30));
+  pending.status=now<pending.closesAt?'open':'closed_pending';
+  await pending.save();
+  await ArcadeEntry.updateMany({contest:pending._id},{$set:{eventSlug:event.slug}});
+  return pending;
+}
 
 export async function currentContest(now=new Date()){
-  const events=await Event.find({active:{$ne:false},arcadeEnabled:{$ne:false},date:{$gt:now}}).sort({date:1}).lean();
-  if(!events.length)return null;
+  const settings=await arcadeSettings();
+  if(!settings.enabled)return null;
+  const upcomingEvents=await Event.find({
+    active:{$ne:false},
+    arcadeEnabled:{$ne:false},
+    date:{$gt:now}
+  }).sort({date:1}).lean();
+  // Do not attach the holding leaderboard to an event whose reward window has
+  // already closed. It remains live and follows the next eligible event.
+  const events=upcomingEvents.filter(event=>hasOpenContestWindow(event.date,now));
+  if(!events.length)return refreshContest(await pendingContest(settings,now),now);
+  await attachPendingContest(events[0],now);
   let fallback=null;
   for(const event of events){
     const closesAt=contestCloseAt(event.date);
@@ -85,8 +136,10 @@ export async function retryArcadeResultEmails(now=new Date()){
 }
 
 export const contestPublic=contest=>contest?{
-  id:String(contest._id),eventSlug:contest.eventSlug,eventTitle:contest.eventTitle,eventDate:contest.eventDate,
-  opensAt:contest.opensAt,closesAt:contest.closesAt,status:contest.status,
+  id:String(contest._id),assigned:contest.eventSlug!==PENDING_EVENT_SLUG,
+  eventSlug:contest.eventSlug===PENDING_EVENT_SLUG?null:contest.eventSlug,
+  eventTitle:contest.eventTitle,eventDate:contest.eventSlug===PENDING_EVENT_SLUG?null:contest.eventDate,
+  opensAt:contest.opensAt,closesAt:contest.eventSlug===PENDING_EVENT_SLUG?null:contest.closesAt,status:contest.status,
   minParticipants:contest.minParticipants,participantCount:contest.participantCount,finalizedAt:contest.finalizedAt,
   entriesNeeded:Math.max(0,contest.minParticipants-contest.participantCount)
 }:null;

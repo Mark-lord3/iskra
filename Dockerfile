@@ -6,6 +6,7 @@ COPY client/package*.json ./client/
 RUN npm ci --prefix client
 
 COPY client/ ./client/
+COPY shared/ ./shared/
 RUN npm run build --prefix client
 
 

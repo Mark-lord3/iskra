@@ -28,7 +28,7 @@ const loginSchema = z.object({
 
 const cookieOptions = {
   httpOnly: true,
-  sameSite: "lax" as const,
+  sameSite: "strict" as const,
   secure: env.NODE_ENV === "production",
   path: "/"
 };
@@ -44,9 +44,9 @@ function publicUser(user: { _id: unknown; firstName: string; email?: string | nu
   };
 }
 
-function setSession(res: Response, userId: string) {
-  res.cookie("accessToken", signAccessToken(userId), cookieOptions);
-  res.cookie("refreshToken", signRefreshToken(userId), { ...cookieOptions, maxAge: 30 * 24 * 60 * 60_000 });
+function setSession(res: Response, userId: string, version: number) {
+  res.cookie("accessToken", signAccessToken(userId, version), { ...cookieOptions, maxAge: 15 * 60_000 });
+  res.cookie("refreshToken", signRefreshToken(userId, version), { ...cookieOptions, maxAge: 30 * 24 * 60 * 60_000 });
 }
 
 export async function register(req: Request, res: Response) {
@@ -60,17 +60,17 @@ export async function register(req: Request, res: Response) {
     dateOfBirth: new Date(`${input.dateOfBirth}T00:00:00.000Z`),
     passwordHash: await bcrypt.hash(input.password, 12)
   });
-  setSession(res, String(user._id));
+  setSession(res, String(user._id), user.authVersion || 0);
   res.status(201).json({ user: publicUser(user) });
 }
 
 export async function login(req: Request, res: Response) {
   const input = loginSchema.parse(req.body);
-  const user = await User.findOne({ email: input.email }).select("+passwordHash");
+  const user = await User.findOne({ email: input.email }).select("+passwordHash +authVersion");
   if (!user?.passwordHash || !await bcrypt.compare(input.password, user.passwordHash)) {
     return res.status(401).json({ message: "Email or password is incorrect." });
   }
-  setSession(res, String(user._id));
+  setSession(res, String(user._id), user.authVersion || 0);
   res.json({ user: publicUser(user) });
 }
 
@@ -85,16 +85,25 @@ export async function refresh(req: Request, res: Response) {
   if (!token) return res.status(401).json({ message: "Session expired." });
   try {
     const payload = verifyRefreshToken(token);
-    const user = await User.findById(payload.sub);
-    if (!user) return res.status(401).json({ message: "Session expired." });
-    setSession(res, String(user._id));
+    const user = await User.findById(payload.sub).select("+authVersion");
+    if (!user || payload.ver !== (user.authVersion || 0)) return res.status(401).json({ message: "Session expired." });
+    setSession(res, String(user._id), user.authVersion || 0);
     return res.json({ user: publicUser(user) });
   } catch {
     return res.status(401).json({ message: "Session expired." });
   }
 }
 
-export function logout(_req: Request, res: Response) {
+export async function logout(req: Request, res: Response) {
+  const token = req.cookies.refreshToken;
+  if (token) {
+    try {
+      const payload = verifyRefreshToken(token);
+      await User.updateOne({ _id: payload.sub, authVersion: payload.ver }, { $inc: { authVersion: 1 } });
+    } catch {
+      // Clearing invalid cookies is still a successful logout.
+    }
+  }
   res.clearCookie("accessToken", cookieOptions);
   res.clearCookie("refreshToken", cookieOptions);
   res.json({ ok: true });

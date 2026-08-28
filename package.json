@@ -10,7 +10,11 @@
     "dev:client": "npm run dev --prefix client",
     "seed": "npm run seed --prefix server",
     "build": "npm run build --prefix client",
-    "start": "npm start --prefix server"
+    "start": "npm start --prefix server",
+    "deploy:staging": "./deploy-staging.sh",
+    "deploy:production": "./deploy-production.sh",
+    "deploy:dating:staging": "npm run deploy:staging --prefix iskra-app",
+    "deploy:dating:production": "npm run deploy:production --prefix iskra-app"
   },
   "devDependencies": { "concurrently": "^9.1.0" }
 }

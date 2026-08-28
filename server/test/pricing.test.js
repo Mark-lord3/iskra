@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { quote, promoEligibility, nextUnlock, tierPrice, tierAvailability, clampQty, MAX_QTY }
+import { quote, vipTableQuote, vipTableDiscount, promoEligibility, nextUnlock, tierPrice, tierAvailability, clampQty, MAX_QTY }
   from '../../shared/pricing.js';
 
 /* The three real campaigns, with the minimums the offers page advertises. */
@@ -114,6 +114,53 @@ test('no code keeps the full ticket total', () => {
   assert.equal(q.promo, null);
 });
 
+test('VIP tables reject every promotion and always keep the fixed package price', () => {
+  const promos = [
+    SPARK40,
+    FOURPLAY,
+    RESIDENT8,
+    {code:'PRIVATE95',label:'Private 95% off',off:0.95,minQty:1,status:'live'},
+    {code:'FLAT',label:'Flat price',flat:1,minQty:1,status:'live'}
+  ];
+  for(const promo of promos){
+    const q = quote({base:BASE,tierKey:'booth',qty:2,promo});
+    assert.equal(q.unit,140);
+    assert.equal(q.subtotal,280);
+    assert.equal(q.total,280,`${promo.code} must not reduce a VIP table order`);
+    assert.equal(q.saved,0);
+    assert.deepEqual(q.lines,[]);
+    assert.equal(q.promo.applied,false);
+    assert.equal(q.promo.reason,'VIP_EXCLUDED');
+  }
+});
+
+test('the first two VIP tables discount admission by 20 percent',()=>{
+  assert.equal(vipTableDiscount(1),0.20);
+  assert.equal(vipTableDiscount(2),0.20);
+  const q=vipTableQuote({base:25,admissionTierKey:'general',admissionQty:4,tableSlot:2});
+  assert.equal(q.tablePrice,140);
+  assert.equal(q.admissionSubtotal,100);
+  assert.equal(q.admissionDiscount,20);
+  assert.equal(q.total,220);
+  assert.equal(q.tablePrice+q.admissionTotal,q.total,'ticket and VIP line items must balance to the checkout total');
+  assert.equal(q.discountPercent,20);
+});
+
+test('VIP tables three and four discount admission by 40 percent',()=>{
+  assert.equal(vipTableDiscount(3),0.40);
+  assert.equal(vipTableDiscount(4),0.40);
+  const q=vipTableQuote({base:25,admissionTierKey:'general',admissionQty:4,tableSlot:3});
+  assert.equal(q.admissionSubtotal,100);
+  assert.equal(q.admissionDiscount,40);
+  assert.equal(q.total,200);
+  assert.equal(q.discountPercent,40);
+});
+
+test('a VIP table always requires between one and four admission tickets',()=>{
+  assert.equal(vipTableQuote({base:25,admissionQty:0,tableSlot:1}).qty,1);
+  assert.equal(vipTableQuote({base:25,admissionQty:99,tableSlot:1}).qty,4);
+});
+
 /* ------------------------------------------------------------- helpers --- */
 
 test('the next unlock is the nearest offer still out of reach', () => {
@@ -137,7 +184,8 @@ test('quantity is clamped to the order limits', () => {
 test('tier prices follow the event price', () => {
   assert.equal(tierPrice('general', 25), 25);
   assert.equal(tierPrice('early', 25), 30);
-  assert.equal(tierPrice('booth', 25), 200);
+  assert.equal(tierPrice('booth', 25), 140);
+  assert.equal(tierPrice('booth', 40), 140, 'the VIP table is a fixed package price');
   assert.equal(tierPrice('nonsense', 25), 25, 'an unknown tier falls back to general');
 });
 

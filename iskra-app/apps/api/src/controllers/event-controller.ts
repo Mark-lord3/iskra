@@ -2,11 +2,15 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import { Event } from "../models/Event";
 import { Venue } from "../models/Venue";
+import { requireDatingApp } from "../lib/feature-config";
+import { syncCurrentPromoEvent } from "../services/promo-event-sync";
 import { getCleanupAt } from "../services/cleanup-service";
 
 export async function listVenueLanding(req: Request, res: Response) {
+  await requireDatingApp();
   const { slug } = req.params;
-  const event = await Event.findOne({ slug }).lean();
+  if (slug === "club-iskra-tonight") await syncCurrentPromoEvent();
+  const event = await Event.findOne({ slug, status: { $in: ["active", "ending"] }, endsAt: { $gt: new Date() } }).lean();
 
   if (!event) {
     return res.status(404).json({ message: "Event not found." });

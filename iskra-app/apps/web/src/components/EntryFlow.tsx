@@ -1,6 +1,8 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
+import { prepareUploadImage } from "../lib/image";
+import { useDialogLifecycle } from "../hooks/useDialogLifecycle";
 
 type User = { id: string; firstName: string; email: string };
 type EventContext = { event: { _id: string; name: string }; venue: { _id: string; name: string; locationLabel?: string } };
@@ -19,9 +21,20 @@ export function EntryFlow({ context, hasAccount, access, existingProfile, onComp
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<"register" | "login" | "paywall" | "profile">(hasAccount ? (access?.paid ? "profile" : "paywall") : "register");
   const [error, setError] = useState("");
+  const [submissionStage, setSubmissionStage] = useState<"idle" | "uploading" | "saving">("idle");
   const [selected, setSelected] = useState(existingProfile?.intentions || ["Dating", "Dancing"]);
+  const dialogRef = useDialogLifecycle(true, onClose);
+  const stage = mode === "profile" ? 3 : mode === "paywall" ? 2 : 1;
   const adultDate = new Date();
   adultDate.setFullYear(adultDate.getFullYear() - 18);
+
+  useEffect(() => {
+    if (hasAccount && access?.paid && mode === "paywall") {
+      setError("");
+      setMode("profile");
+    }
+  }, [access?.paid, hasAccount, mode]);
+
   const mutation = useMutation({
     mutationFn: async ({ form, kind }: { form: HTMLFormElement; kind: typeof mode }) => {
       const values = Object.fromEntries(new FormData(form));
@@ -29,14 +42,19 @@ export function EntryFlow({ context, hasAccount, access, existingProfile, onComp
         const photo = values.photo;
         let photos: string[] | undefined;
         if (photo instanceof File && photo.size > 0) {
+          setSubmissionStage("uploading");
+          // Shrunk and re-encoded here so a full-size camera photo cannot blow
+          // the server's size limit, and so its EXIF GPS never leaves the phone.
+          const prepared = await prepareUploadImage(photo);
           const uploadBody = new FormData();
-          uploadBody.set("file", photo);
+          uploadBody.set("file", prepared);
           uploadBody.set("eventId", context.event._id);
           uploadBody.set("venueId", context.venue._id);
           uploadBody.set("kind", "profile");
           const uploaded = await api<{ url: string }>("/media/upload", { method: "POST", body: uploadBody });
           photos = [uploaded.url];
         }
+        setSubmissionStage("saving");
         const competitionConsent = values.competitionConsent === "on";
         return api(`/profiles/event`, {
           method: "POST",
@@ -67,6 +85,7 @@ export function EntryFlow({ context, hasAccount, access, existingProfile, onComp
     },
     onSuccess: async (_, variables) => {
       setError("");
+      setSubmissionStage("idle");
       if (variables.kind === "register") {
         await queryClient.invalidateQueries({ queryKey: ["me"] });
         await queryClient.invalidateQueries({ queryKey: ["access", context.event._id] });
@@ -93,7 +112,10 @@ export function EntryFlow({ context, hasAccount, access, existingProfile, onComp
       }
       onComplete();
     },
-    onError: (requestError) => setError(requestError instanceof Error ? requestError.message : "Please try again.")
+    onError: (requestError) => {
+      setSubmissionStage("idle");
+      setError(requestError instanceof Error ? requestError.message : "Please try again.");
+    }
   });
 
   const checkout = useMutation({
@@ -104,6 +126,8 @@ export function EntryFlow({ context, hasAccount, access, existingProfile, onComp
         setMode("profile");
       } else if (result.url) {
         window.location.assign(result.url);
+      } else {
+        setError("Checkout could not be opened. Please try again.");
       }
     },
     onError: (requestError) => setError(requestError instanceof Error ? requestError.message : "Checkout could not open.")
@@ -116,7 +140,7 @@ export function EntryFlow({ context, hasAccount, access, existingProfile, onComp
   }
 
   return (
-    <div className="entry-flow" role="dialog" aria-modal="true" aria-labelledby="entry-title">
+    <div ref={dialogRef} className="entry-flow" role="dialog" aria-modal="true" aria-labelledby="entry-title">
       <div className="entry-flow__art" aria-hidden="true">
         <div className="entry-flow__signal"><i /><i /><i /></div>
         <p>VENUE MODE / {context.venue.name}</p>
@@ -124,6 +148,7 @@ export function EntryFlow({ context, hasAccount, access, existingProfile, onComp
       </div>
       <section className="entry-flow__panel">
         {onClose && <button type="button" className="entry-flow__close" onClick={onClose} aria-label="Close">Close</button>}
+        <div className="entry-progress" aria-label={`Step ${stage} of 3`}><span style={{ transform: `scaleX(${stage / 3})` }} /><small>{stage} / 3</small></div>
         <p className="entry-flow__eyebrow">{mode === "profile" ? "ONE LAST STEP" : mode === "paywall" ? "YOUR ACCOUNT IS READY" : "WELCOME TO ISKRA"}</p>
         <h1 id="entry-title">{mode === "register" ? "Enter tonight." : mode === "login" ? "Welcome back." : mode === "paywall" ? `${access?.registeredCount || 0} people signed up.` : "Build tonight's profile."}</h1>
         <p className="entry-flow__intro">{mode === "profile" ? "This temporary profile disappears after the venue session." : mode === "paywall" ? "Unlock tonight's venue room, matching, and King & Queen voting with one $5 CAD event pass." : "18+ only. Create a private account before you meet people in the room."}</p>
@@ -156,7 +181,7 @@ export function EntryFlow({ context, hasAccount, access, existingProfile, onComp
           </>}
 
           {error && <p className="entry-form__error" role="alert">{error}</p>}
-          <button className="entry-form__submit" disabled={mutation.isPending || (mode === "profile" && selected.length === 0)}>{mutation.isPending ? "Please wait..." : mode === "register" ? "Create account" : mode === "login" ? "Sign in" : "Enter the room"}</button>
+          <button className="entry-form__submit" disabled={mutation.isPending || (mode === "profile" && selected.length === 0)}>{mutation.isPending ? submissionStage === "uploading" ? "Uploading selfie..." : submissionStage === "saving" ? "Saving your profile..." : "Please wait..." : mode === "register" ? "Create account" : mode === "login" ? "Sign in" : "Enter the room"}</button>
         </form>}
         <p className="entry-flow__legal">By continuing, you confirm you are 18+ and agree to respectful, consent-first interactions.</p>
       </section>

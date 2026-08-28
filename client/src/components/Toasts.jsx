@@ -19,7 +19,7 @@ export function ToastProvider({ children }) {
       <div className="toasts" aria-live="polite">
         {items.map(t => (
           <div className="toast" key={t.key}>
-            <b>{t.icon}</b><span dangerouslySetInnerHTML={{ __html: t.msg }} />
+            <b>{t.icon}</b><span>{String(t.msg ?? '')}</span>
           </div>
         ))}
       </div>

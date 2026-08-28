@@ -8,7 +8,7 @@ r.get('/', async (_req,res,next)=>{
   try{
     const events = await Event.find({active:{$ne:false}}).sort({date:1}).lean();
     const counts = await Ticket.aggregate([
-      {$match:{status:{$ne:'cancelled'}}},
+      {$match:{status:{$ne:'cancelled'},admissionValid:{$ne:false}}},
       {$group:{_id:'$eventSlug',count:{$sum:1}}}
     ]);
     const countBySlug = new Map(counts.map(item=>[item._id,item.count]));

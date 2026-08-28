@@ -9,6 +9,8 @@ import { URL } from 'node:url';
  * to another player's socket.
  */
 const HEARTBEAT_MS = 30_000;
+const MESSAGE_WINDOW_MS = 10_000;
+const MAX_MESSAGES_PER_WINDOW = 80;
 
 export class RealtimeHub {
   constructor(){
@@ -18,15 +20,20 @@ export class RealtimeHub {
     this.snapshot = () => null;
   }
 
-  attach(server, { path = '/ws/poker', resolveViewer, snapshot }){
+  attach(server, { path = '/ws/poker', resolveViewer, snapshot, allowOrigin = () => true }){
     this.resolveViewer = resolveViewer;
     this.snapshot = snapshot;
-    this.wss = new WebSocketServer({ noServer: true });
+    this.wss = new WebSocketServer({ noServer: true, maxPayload:16 * 1024 });
 
     server.on('upgrade', async (req, socket, head) => {
       let url;
       try { url = new URL(req.url, 'http://localhost'); } catch { return socket.destroy(); }
       if(url.pathname !== path) return;   // leave other upgrades to whoever wants them
+
+      if(!allowOrigin(req.headers.origin)){
+        socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
+        return socket.destroy();
+      }
 
       const tableId = url.searchParams.get('table');
       if(!tableId) return socket.destroy();
@@ -38,6 +45,8 @@ export class RealtimeHub {
         ws.viewer = viewer;
         ws.tableId = tableId;
         ws.isAlive = true;
+        ws.messageWindowStartedAt = Date.now();
+        ws.messageCount = 0;
         this.join(tableId, ws);
         this.wss.emit('connection', ws, req);
       });
@@ -63,6 +72,12 @@ export class RealtimeHub {
   }
 
   onMessage(ws, raw){
+    const now=Date.now();
+    if(now-ws.messageWindowStartedAt>MESSAGE_WINDOW_MS){
+      ws.messageWindowStartedAt=now;ws.messageCount=0;
+    }
+    ws.messageCount+=1;
+    if(ws.messageCount>MAX_MESSAGES_PER_WINDOW)return ws.close(1008,'Message rate exceeded');
     let msg;
     try { msg = JSON.parse(String(raw)); } catch { return; }
     // The socket carries intents only; every one is re-validated server-side.

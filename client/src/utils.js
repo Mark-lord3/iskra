@@ -1,3 +1,5 @@
+import {tierPrice} from '../../shared/pricing.js';
+
 export const pad = n => String(n).padStart(2, '0');
 
 /* Event times are stored as the venue's wall clock in UTC, so they are always
@@ -16,9 +18,9 @@ export const REDUCED = typeof matchMedia !== 'undefined'
 export const tiersFor = (e, t = key => key) => {
   const base = Number.isFinite(Number(e.from)) ? Number(e.from) : 8;
   return [
-    { n:t('checkout.general'), d:t('checkout.generalDesc'), p:base },
-    { n:t('checkout.early'), d:t('checkout.earlyDesc'), p:Math.round(base * 1.2) },
-    { n:t('checkout.booth'), d:t('checkout.boothDesc'), p:Math.round(base * 8) }
+    { n:t('checkout.general'), d:t('checkout.generalDesc'), p:tierPrice('general',base) },
+    { n:t('checkout.early'), d:t('checkout.earlyDesc'), p:tierPrice('early',base) },
+    { n:t('checkout.booth'), d:t('checkout.boothDesc'), p:tierPrice('booth',base) }
   ];
 };
 

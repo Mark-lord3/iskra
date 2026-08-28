@@ -3,7 +3,7 @@ import { SITE } from '../site.js';
 import {useI18n} from '../i18n.jsx';
 
 const NIGHTS = [['/schedule','nav.schedule'], ['/offers','nav.offers'], ['/play','footer.play']];
-const VISIT  = [['/about','footer.about'], ['/gallery','nav.gallery'], ['/tickets','nav.tickets'], ['/contact','nav.contact'], ['/newsletter','footer.list']];
+const VISIT  = [['/about','footer.about'], ['/gallery','nav.gallery'], ['/tickets','nav.tickets'], ['/contact','nav.contact'], ['/newsletter','footer.list'], ['/terms','footer.terms']];
 
 export default function Footer() {
   const {t}=useI18n();
@@ -29,7 +29,6 @@ export default function Footer() {
             <h5>{t('footer.visit')}</h5>
             <ul>
               {VISIT.map(([h,key]) => <li key={key}><a href={h}>{t(key)}</a></li>)}
-              <li><a href={`mailto:${SITE.email}`}>{SITE.email}</a></li>
             </ul>
           </div>
 

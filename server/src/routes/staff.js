@@ -23,6 +23,7 @@ const doorTicket = t => ({
   eventDate: t.eventDate,
   room: t.room,
   status: t.status,
+  admissionValid: t.admissionValid !== false,
   redeemedAt: t.redeemedAt
 });
 
@@ -48,6 +49,7 @@ r.post('/session', async (req, res, next) => {
     const raw = crypto.randomBytes(32).toString('base64url');
     const session = await ScannerSession.create({
       tokenHash: hashToken(raw),
+      inviteId: invite.jti,
       label: invite.label,
       eventSlug: invite.eventSlug || null,
       expiresAt: new Date(Date.now() + invite.sessionDays * 86400_000),
@@ -61,7 +63,11 @@ r.post('/session', async (req, res, next) => {
       eventSlug: session.eventSlug,
       expiresAt: session.expiresAt
     });
-  }catch(e){ next(e); }
+  }catch(e){
+    if(e?.code === 11000 && e?.keyPattern?.inviteId)
+      return res.status(409).json({ error:'This onboarding link has already been used.', code:'INVITE_USED' });
+    next(e);
+  }
 });
 
 /**
@@ -124,6 +130,9 @@ async function resolve(req){
 
   if(!ticket) return { http:404, outcome:'invalid', error:'Ticket not found.' };
 
+  if(ticket.admissionValid===false)
+    return {http:409,outcome:'reservation_only',ticket,error:'This QR reserves a VIP table but is not an admission ticket.'};
+
   const scope = req.scanner.eventSlug;
   if(scope && ticket.eventSlug !== scope)
     return { http:409, outcome:'wrong_event', ticket, error:'This ticket is for another night.' };
@@ -136,9 +145,11 @@ async function resolve(req){
     return { http:409, outcome:'expired', ticket, error:'This ticket is for a past night.' };
 
   // A paid tier with no completed order must not be admitted.
-  if(ticket.price > 0 && ticket.orderId){
-    const order = await Order.findById(ticket.orderId).select('status').lean();
-    if(order && !['paid','complete','free'].includes(order.status))
+  if(ticket.price > 0){
+    if(!ticket.orderId)
+      return { http:409, outcome:'unpaid', ticket, error:'This paid ticket has no verified order.' };
+    const order = await Order.findById(ticket.orderId).select('status paymentStatus').lean();
+    if(!order || !['paid','complete','free'].includes(order.status))
       return { http:409, outcome:'unpaid', ticket, error:'Payment for this ticket is not complete.' };
   }
 

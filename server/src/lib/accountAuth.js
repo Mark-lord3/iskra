@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import {promisify} from 'node:util';
+import {parseCookie as parseCookies} from 'cookie';
 import User from '../models/User.js';
 import UserSession from '../models/UserSession.js';
 
@@ -21,10 +22,13 @@ export async function verifyPassword(password,encoded){
   const expected=Buffer.from(hex,'hex');
   return derived.length===expected.length&&crypto.timingSafeEqual(derived,expected);
 }
-const cookies=req=>Object.fromEntries(String(req.get('cookie')||'').split(';').map(part=>part.trim().split(/=(.*)/s)).filter(([key])=>key).map(([key,value])=>[decodeURIComponent(key),decodeURIComponent(value||'')]));
+const cookies=req=>parseCookies(String(req.get('cookie')||''));
 const cookieOptions=()=>({httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:SESSION_DAYS*86400_000});
 
 export async function createSession(req,res,user){
+  await UserSession.deleteMany({userId:user._id,expiresAt:{$lte:new Date()}});
+  const older=await UserSession.find({userId:user._id}).sort({createdAt:-1}).skip(9).select('_id').lean();
+  if(older.length)await UserSession.deleteMany({_id:{$in:older.map(row=>row._id)}});
   const raw=randomToken();
   const csrfToken=randomToken(24);
   const session=await UserSession.create({
@@ -55,7 +59,7 @@ export async function optionalAccount(req,_res,next){
  * which sees a bare http request rather than an Express one.
  */
 export async function accountFromCookieHeader(header){
-  const raw=Object.fromEntries(String(header||'').split(';').map(part=>part.trim().split(/=(.*)/s)).filter(([key])=>key).map(([key,value])=>[decodeURIComponent(key),decodeURIComponent(value||'')]))[COOKIE];
+  const raw=parseCookies(String(header||''))[COOKIE];
   if(!raw)return null;
   const session=await UserSession.findOne({tokenHash:hashToken(raw),expiresAt:{$gt:new Date()}});
   if(!session)return null;

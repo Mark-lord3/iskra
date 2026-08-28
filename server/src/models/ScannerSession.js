@@ -9,6 +9,11 @@ import mongoose from 'mongoose';
  */
 const scannerSessionSchema = new mongoose.Schema({
   tokenHash:{type:String,required:true,unique:true,index:true},
+  // QR onboarding links are single-use even if their signed payload leaks.
+  /* No default. A sparse unique index skips documents where the field is
+     absent, but an explicit null is a value and collides — which meant only one
+     passcode session could exist and the second bouncer to sign in got a 500. */
+  inviteId:{type:String,unique:true,sparse:true,index:true},
   label:{type:String,default:'Door device',trim:true,maxlength:60},
   // null scope means every event; a slug restricts the device to one night.
   eventSlug:{type:String,default:null,index:true},

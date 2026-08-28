@@ -4,14 +4,16 @@ import Campaign from '../models/Campaign.js';
 import CampaignExposure from '../models/CampaignExposure.js';
 import ConsentEvent from '../models/ConsentEvent.js';
 import {optionalAccount} from '../lib/accountAuth.js';
+import {visitorSigningSecret} from '../config/security.js';
+import {safePublicHref} from '../lib/publicContent.js';
+import {parseCookie as parseCookies} from 'cookie';
 
 const r=Router();
 const COOKIE='iskra_visitor';
-const secret=()=>process.env.VISITOR_SIGNING_SECRET||process.env.ADMIN_KEY||'iskra-local-visitor-secret';
+const secret=visitorSigningSecret;
 const sign=id=>crypto.createHmac('sha256',secret()).update(id).digest('base64url');
-const cookieMap=req=>Object.fromEntries(String(req.get('cookie')||'').split(';').map(v=>v.trim().split(/=(.*)/s)).filter(([k])=>k));
 const visitor=(req,res)=>{
-  const raw=decodeURIComponent(cookieMap(req)[COOKIE]||'');
+  const raw=parseCookies(String(req.get('cookie')||''))[COOKIE]||'';
   let [id,signature]=raw.split('.');
   const expected=id?sign(id):'';
   if(!id||!signature||signature.length!==expected.length||!crypto.timingSafeEqual(Buffer.from(signature),Buffer.from(expected))){
@@ -42,7 +44,7 @@ r.get('/next',async(req,res,next)=>{
       const exposure=await CampaignExposure.findOne({visitorHash,campaignId:campaign._id}).lean();
       if(!campaignEligible({authenticated:Boolean(req.account),totalImpressions:total[0]?.count||0,exposure,frequencyCap:campaign.frequencyCap}))continue;
       const locale=['en','uk','ru'].includes(req.query.locale)?req.query.locale:'en';
-      return res.json({campaign:{id:campaign._id,key:campaign.key,title:localeValue(campaign.title,locale),text:localeValue(campaign.text,locale),cta:localeValue(campaign.cta,locale),href:campaign.href,variant:campaign.variant}});
+      return res.json({campaign:{id:campaign._id,key:campaign.key,title:localeValue(campaign.title,locale),text:localeValue(campaign.text,locale),cta:localeValue(campaign.cta,locale),href:safePublicHref(campaign.href,'/newsletter'),variant:campaign.variant}});
     }
     res.json({campaign:null});
   }catch(error){next(error);}

@@ -17,6 +17,8 @@ const promoSchema = new mongoose.Schema({
   // shown two offers adding up when they cannot.
   stackable:{type:Boolean,default:true},
   active:{type:Boolean,default:true},
+  public:{type:Boolean,default:true},
+  singleUse:{type:Boolean,default:false},
   startsAt:{type:Date,default:null},
   expiresAt:{type:Date,default:null},
   // Drives the distinct visual treatment on the offers page.

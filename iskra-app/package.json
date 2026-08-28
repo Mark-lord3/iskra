@@ -10,10 +10,22 @@
     "dev": "concurrently -n web,api -c cyan,magenta \"npm run dev --workspace @iskra/web\" \"npm run dev --workspace @iskra/api\"",
     "build": "npm run build --workspace @iskra/web && npm run build --workspace @iskra/api",
     "lint": "npm run lint --workspace @iskra/web && npm run lint --workspace @iskra/api",
-    "typecheck": "npm run typecheck --workspace @iskra/web && npm run typecheck --workspace @iskra/api"
+    "typecheck": "npm run typecheck --workspace @iskra/web && npm run typecheck --workspace @iskra/api",
+    "deploy:staging": "./deploy-staging.sh",
+    "deploy:production": "./deploy-production.sh",
+    "verify:staging": "./verify-staging.sh",
+    "verify:production": "./verify-production.sh",
+    "seed:staging:dating": "npm run seed:staging:dating --workspace @iskra/api",
+    "reset:staging:dating": "npm run reset:staging:dating --workspace @iskra/api"
   },
   "devDependencies": {
-    "concurrently": "^9.2.0"
+    "concurrently": "^9.2.0",
+    "esbuild": "^0.28.2"
+  },
+  "overrides": {
+    "esbuild": "^0.28.2",
+    "tsup@8.5.1": {
+      "esbuild": "^0.28.2"
+    }
   }
 }
-

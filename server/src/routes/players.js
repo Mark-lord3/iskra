@@ -10,6 +10,10 @@ import {PRIZES} from '../lib/prizes.js';
 const r = Router();
 r.use(optionalAccount);
 const EMAIL = /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i;
+const tokenMatches=(supplied,expected)=>{
+  const a=Buffer.from(String(supplied||'')),b=Buffer.from(String(expected||''));
+  return a.length===b.length&&a.length>0&&crypto.timingSafeEqual(a,b);
+};
 
 /* The client turns these codes into localised copy. The message never says
    which word was rejected, so the filter cannot be probed by trial and error. */
@@ -71,7 +75,10 @@ r.post('/', async (req,res,next)=>{
 
     let player = await Player.findOne({email}).select('+token');
     if(player){
-      if(player.handle !== handle){ player.handle = handle; await player.save(); }
+      return res.status(409).json({
+        error:'This email already has a player. Sign in to your Project ISKRA account or continue on the original device.',
+        code:'PLAYER_EXISTS'
+      });
     } else {
       player = await Player.create({ handle, email, consent, token: crypto.randomBytes(24).toString('hex') });
     }
@@ -87,8 +94,11 @@ r.post('/', async (req,res,next)=>{
 // Live status for a known player: attempts left, best score, prize code.
 r.get('/:id', async (req,res,next)=>{
   try{
-    const p = await Player.findById(req.params.id);
+    const p = await Player.findById(req.params.id).select('+token');
     if(!p) return res.status(404).json({error:'Player not found',code:'NOT_FOUND'});
+    const ownsAccount=req.account&&req.account.email===p.email;
+    if(!ownsAccount&&!tokenMatches(req.get('x-player-token'),p.token))
+      return res.status(401).json({error:'Player session required.',code:'AUTH'});
     res.json(await publicPlayer(p));
   }catch(e){ next(e); }
 });

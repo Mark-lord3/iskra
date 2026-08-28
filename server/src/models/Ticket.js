@@ -13,6 +13,7 @@ const ticketSchema = new mongoose.Schema({
   buyerEmail:{type:String,required:true,index:true},
   tier:{type:String,default:'General admission'},
   price:{type:Number,default:0},
+  admissionValid:{type:Boolean,default:true,index:true},
   orderId:{type:mongoose.Schema.Types.ObjectId,ref:'Order',default:null,index:true},
   userId:{type:mongoose.Schema.Types.ObjectId,ref:'User',default:null,index:true},
   stripeSessionId:{type:String,default:null,index:true},

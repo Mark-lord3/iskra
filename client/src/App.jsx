@@ -22,7 +22,9 @@ import TicketsPage from './pages/TicketsPage.jsx';
 import AccountPage from './pages/AccountPage.jsx';
 import PartnersPage from './pages/PartnersPage.jsx';
 import PokerPage from './pages/PokerPage.jsx';
+import TermsPage from './pages/TermsPage.jsx';
 import ConsentCampaign from './components/ConsentCampaign.jsx';
+import Seo from './components/Seo.jsx';
 import { api } from './api.js';
 import { useReveal } from './hooks/useReveal.js';
 import { nextEvent } from './utils.js';
@@ -112,6 +114,7 @@ export default function App() {
     '/tickets': <TicketsPage onTickets={openTickets} />,
     '/account': <AccountPage />,
     '/partners': <PartnersPage onTickets={openTickets} />,
+    '/terms': <TermsPage onTickets={openTickets} />,
     '/staff/scan': <StaffScanPage />,
     // The old admin-key scanner URL keeps working, pointing at the staff route.
     '/admin/scan': <StaffScanPage />,
@@ -121,6 +124,7 @@ export default function App() {
   if (routed) {
     return (
       <ToastProvider>
+        <Seo route={route} events={events} />
         {routed}
         <ConsentCampaign />
         {ticketFor && !modalEvent && <NoSaleModal onClose={() => setTicketFor(null)} />}
@@ -133,6 +137,7 @@ export default function App() {
 
   return (
     <ToastProvider>
+      <Seo route={route} events={events} />
       <ConsentCampaign />
       <PromoBar />
       <Nav onTickets={openTickets} />

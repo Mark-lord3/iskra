@@ -1,0 +1,57 @@
+name: ${COMPOSE_PROJECT_NAME:-iskra-dating-production}
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: ${DATING_API_IMAGE:-iskra-dating-api:production}
+    container_name: ${DATING_API_CONTAINER:-iskra-dating-api}
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ${DATING_ENV_FILE:-./apps/api/.env.runtime}
+    environment:
+      NODE_ENV: production
+      PORT: "4311"
+      CLIENT_ORIGIN: ${DATING_CLIENT_ORIGIN:-https://dating.project-iskra.com}
+      PROMO_API_URL: ${DATING_PROMO_API_URL:-http://iskra-production:4310/api}
+      UPLOAD_ROOT: /app/uploads
+    expose:
+      - "4311"
+    volumes:
+      - ./dating-uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:4311/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - orvadora
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: /api/v1
+    image: ${DATING_WEB_IMAGE:-iskra-dating-web:production}
+    container_name: ${DATING_WEB_CONTAINER:-iskra-dating-web}
+    restart: unless-stopped
+    init: true
+    expose:
+      - "4173"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:4173/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - orvadora
+
+networks:
+  orvadora:
+    name: orvadora_app
+    external: true

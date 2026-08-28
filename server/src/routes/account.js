@@ -11,6 +11,7 @@ import User from '../models/User.js';
 import UserSession from '../models/UserSession.js';
 import {clearSessionCookie,createSession,hashPassword,hashToken,optionalAccount,publicUser,randomToken,requireAccount,requireCsrf,verifyPassword} from '../lib/accountAuth.js';
 import {sendAccountEmail} from '../services/accountEmail.js';
+import {stripeEnv} from '../config/stripe.js';
 
 const r=Router();
 const EMAIL=/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i;
@@ -20,8 +21,9 @@ const baseUrl=req=>{
   return configured||`${req.protocol}://${req.get('host')}`;
 };
 const stripe=()=>{
-  if(!process.env.STRIPE_SECRET_KEY)throw Object.assign(new Error('Stripe memberships are not configured.'),{status:503});
-  return new Stripe(process.env.STRIPE_SECRET_KEY);
+  const {secretKey}=stripeEnv();
+  if(!secretKey)throw Object.assign(new Error('Stripe memberships are not configured.'),{status:503});
+  return new Stripe(secretKey);
 };
 const actionToken=async(user,purpose,minutes)=>{
   await AccountToken.deleteMany({userId:user._id,purpose,usedAt:null});
@@ -104,7 +106,10 @@ r.post('/reset-password',async(req,res,next)=>{
     const token=await AccountToken.findOneAndUpdate({tokenHash:hashToken(req.body.token),purpose:'reset',usedAt:null,expiresAt:{$gt:new Date()}},{$set:{usedAt:new Date()}},{new:true});
     if(!token)return res.status(400).json({error:'This reset link is invalid or expired.'});
     await User.findByIdAndUpdate(token.userId,{$set:{passwordHash:await hashPassword(password)}});
-    await UserSession.deleteMany({userId:token.userId});
+    await Promise.all([
+      UserSession.deleteMany({userId:token.userId}),
+      AccountToken.updateMany({userId:token.userId,purpose:'reset',usedAt:null},{$set:{usedAt:new Date()}})
+    ]);
     clearSessionCookie(res);res.json({ok:true});
   }catch(error){next(error);}
 });
@@ -120,10 +125,10 @@ r.get('/overview',requireAccount,async(req,res,next)=>{
     const publicTickets=await Promise.all(tickets.map(async ticket=>({
       id:ticket._id,reference:ticket.reference,eventSlug:ticket.eventSlug,eventTitle:ticket.eventTitle,
       eventDate:ticket.eventDate,room:ticket.room,buyerName:ticket.buyerName,tier:ticket.tier,
-      price:ticket.price,status:ticket.status,redeemedAt:ticket.redeemedAt,
+      price:ticket.price,status:ticket.status,redeemedAt:ticket.redeemedAt,admissionValid:ticket.admissionValid!==false,
       qrDataUrl:await QRCode.toDataURL(ticket.qrPayload,{width:520,margin:2,errorCorrectionLevel:'M'})
     })));
-    res.json({user:publicUser(req.account),orders:orders.map(o=>({id:o._id,eventSlug:o.eventSlug,tier:o.tier,qty:o.qty,total:o.total,currency:o.currency,paymentStatus:o.paymentStatus,status:o.status,emailStatus:o.emailStatus,createdAt:o.createdAt})),tickets:publicTickets,events:events.map(e=>({id:e.slug,slug:e.slug,title:e.title,date:e.date,room:e.room,image:e.image,from:e.from,saved:req.account.savedEvents.includes(e.slug)})),membership:membership||{status:'inactive',plan:'ISKRA Circle'}});
+    res.json({user:publicUser(req.account),orders:orders.map(o=>({id:o._id,eventSlug:o.eventSlug,tier:o.tier,qty:o.qty,total:o.total,currency:o.currency,paymentStatus:o.paymentStatus,status:o.status,emailStatus:o.emailStatus,customOrder:o.customOrderSnapshot||null,createdAt:o.createdAt})),tickets:publicTickets,events:events.map(e=>({id:e.slug,slug:e.slug,title:e.title,date:e.date,room:e.room,image:e.image,from:e.from,saved:req.account.savedEvents.includes(e.slug)})),membership:membership||{status:'inactive',plan:'ISKRA Circle'}});
   }catch(error){next(error);}
 });
 
@@ -144,7 +149,7 @@ r.patch('/profile',requireAccount,requireCsrf,async(req,res,next)=>{try{const na
 r.patch('/preferences',requireAccount,requireCsrf,async(req,res,next)=>{try{for(const key of ['newsletter','eventReminders','offers','productUpdates'])if(typeof req.body[key]==='boolean')req.account.preferences[key]=req.body[key];await req.account.save();if(req.account.preferences.newsletter)await Subscriber.updateOne({email:req.account.email},{$setOnInsert:{source:'account'}},{upsert:true});else await Subscriber.deleteOne({email:req.account.email});res.json({preferences:req.account.preferences});}catch(error){next(error);}});
 r.post('/saved-events/:slug',requireAccount,requireCsrf,async(req,res,next)=>{try{const slug=String(req.params.slug);const saved=req.account.savedEvents.includes(slug);await User.updateOne({_id:req.account._id},saved?{$pull:{savedEvents:slug}}:{$addToSet:{savedEvents:slug}});res.json({saved:!saved});}catch(error){next(error);}});
 
-r.post('/membership/checkout',requireAccount,requireCsrf,async(req,res,next)=>{try{if(!process.env.STRIPE_MEMBERSHIP_PRICE_ID)return res.status(503).json({error:'Membership enrollment is not available yet.'});let customerId=req.account.stripeCustomerId;if(!customerId){const customer=await stripe().customers.create({email:req.account.email,name:req.account.name,metadata:{userId:String(req.account._id)}});customerId=customer.id;req.account.stripeCustomerId=customerId;await req.account.save();}const session=await stripe().checkout.sessions.create({mode:'subscription',customer:customerId,line_items:[{price:process.env.STRIPE_MEMBERSHIP_PRICE_ID,quantity:1}],success_url:`${baseUrl(req)}/account#membership`,cancel_url:`${baseUrl(req)}/account#membership`,metadata:{userId:String(req.account._id)}});res.json({checkoutUrl:session.url});}catch(error){next(error);}});
+r.post('/membership/checkout',requireAccount,requireCsrf,async(req,res,next)=>{try{const {membershipPriceId}=stripeEnv();if(!membershipPriceId)return res.status(503).json({error:'Membership enrollment is not available yet.'});let customerId=req.account.stripeCustomerId;if(!customerId){const customer=await stripe().customers.create({email:req.account.email,name:req.account.name,metadata:{userId:String(req.account._id)}});customerId=customer.id;req.account.stripeCustomerId=customerId;await req.account.save();}const session=await stripe().checkout.sessions.create({mode:'subscription',customer:customerId,line_items:[{price:membershipPriceId,quantity:1}],success_url:`${baseUrl(req)}/account#membership`,cancel_url:`${baseUrl(req)}/account#membership`,metadata:{userId:String(req.account._id)}});res.json({checkoutUrl:session.url});}catch(error){next(error);}});
 r.post('/membership/portal',requireAccount,requireCsrf,async(req,res,next)=>{try{if(!req.account.stripeCustomerId)return res.status(409).json({error:'No billing account is connected.'});const session=await stripe().billingPortal.sessions.create({customer:req.account.stripeCustomerId,return_url:`${baseUrl(req)}/account#membership`});res.json({url:session.url});}catch(error){next(error);}});
 
 r.delete('/',requireAccount,requireCsrf,async(req,res,next)=>{try{const password=String(req.body.password||'');const user=await User.findById(req.account._id).select('+passwordHash');if(!await verifyPassword(password,user.passwordHash))return res.status(403).json({error:'Password confirmation failed.'});await User.updateOne({_id:user._id},{$set:{email:`deleted+${user._id}@invalid.local`,name:'Deleted member',passwordHash:await hashPassword(randomToken()),status:'deleted',deletedAt:new Date(),preferences:{newsletter:false,eventReminders:false,offers:false,productUpdates:false},savedEvents:[]}});await Promise.all([UserSession.deleteMany({userId:user._id}),AccountToken.deleteMany({userId:user._id}),Subscriber.deleteOne({email:user.email})]);clearSessionCookie(res);res.json({ok:true});}catch(error){next(error);}});

@@ -11,6 +11,8 @@ r.post('/validate', async (req,res,next)=>{
   try{
     const code = String(req.body.code||'').trim().toUpperCase();
     if(!code) return res.status(400).json({valid:false,error:'Enter a code.'});
+    if(String(req.body.tierKey || '') === 'booth')
+      return res.json({valid:false,reason:'VIP_EXCLUDED',error:'Promo codes cannot be used for VIP tables.'});
 
     const promo = await PromoCode.findOne({ code, active:true });
     if(promo){
@@ -66,7 +68,7 @@ r.post('/validate', async (req,res,next)=>{
 r.get('/public', async (_req,res,next)=>{
   try{
     const now = new Date();
-    const rows = await PromoCode.find({ active:true })
+    const rows = await PromoCode.find({ active:true, public:{$ne:false} })
       .select('code label off flat minQty maxQty stackable startsAt expiresAt kind appliesTo text')
       .sort({ off:-1 })
       .lean();

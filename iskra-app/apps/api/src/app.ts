@@ -2,6 +2,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
+import { rateLimit } from "express-rate-limit";
 import { ZodError } from "zod";
 import type { NextFunction, Request, Response } from "express";
 import { env } from "./config/env";
@@ -15,16 +16,19 @@ import { accessRouter } from "./routes/access-routes";
 import { competitionRouter } from "./routes/competition-routes";
 import { configRouter } from "./routes/config-routes";
 import { stripeAccessWebhook, stripeCheckoutConfigured, stripeWebhookConfigured } from "./controllers/access-controller";
+import { requireTrustedBrowserOrigin } from "./middleware/security";
+import { socialRouter } from "./routes/social-routes";
 
 export function createApp() {
   const app = express();
-  const allowedLocalOrigins = new Set([
-    env.CLIENT_ORIGIN,
-    "http://localhost:5174",
-    "http://localhost:5175",
-    "http://localhost:5176"
-  ]);
+  const allowedLocalOrigins = new Set([env.CLIENT_ORIGIN]);
+  if (env.NODE_ENV !== "production") {
+    ["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:5176"]
+      .forEach((origin) => allowedLocalOrigins.add(origin));
+  }
 
+  app.disable("x-powered-by");
+  app.set("trust proxy", 1);
   app.use(helmet());
   app.use(
     cors({
@@ -42,6 +46,22 @@ export function createApp() {
   app.post("/api/v1/access/webhook", express.raw({ type: "application/json" }), stripeAccessWebhook);
   app.use(express.json({ limit: "2mb" }));
   app.use(cookieParser());
+  app.use(requireTrustedBrowserOrigin);
+
+  const standardLimiter = rateLimit({ windowMs: 60_000, limit: 180, standardHeaders: "draft-8", legacyHeaders: false });
+  const authLimiter = rateLimit({ windowMs: 15 * 60_000, limit: 12, standardHeaders: "draft-8", legacyHeaders: false });
+  const registerLimiter = rateLimit({ windowMs: 60 * 60_000, limit: 8, standardHeaders: "draft-8", legacyHeaders: false });
+  const uploadLimiter = rateLimit({ windowMs: 60_000, limit: 12, standardHeaders: "draft-8", legacyHeaders: false });
+  const interactionLimiter = rateLimit({ windowMs: 60_000, limit: 90, standardHeaders: "draft-8", legacyHeaders: false });
+  const messageLimiter = rateLimit({ windowMs: 60_000, limit: 45, standardHeaders: "draft-8", legacyHeaders: false });
+  app.use("/api/v1", standardLimiter);
+  app.use("/api/v1/auth/login", authLimiter);
+  app.use("/api/v1/auth/refresh", authLimiter);
+  app.use("/api/v1/auth/register", registerLimiter);
+  app.use("/api/v1/media/upload", uploadLimiter);
+  app.use("/api/v1/social/profiles", interactionLimiter);
+  app.use("/api/v1/social/conversations", messageLimiter);
+  app.use("/api/v1/groups", messageLimiter);
 
   app.get("/api/v1/health", (_req, res) => {
     res.json({
@@ -63,6 +83,7 @@ export function createApp() {
   app.use("/api/v1/config", configRouter);
   app.use("/api/v1/access", accessRouter);
   app.use("/api/v1/competition", competitionRouter);
+  app.use("/api/v1/social", socialRouter);
 
   app.use((_req, res) => {
     res.status(404).json({ message: "Route not found." });

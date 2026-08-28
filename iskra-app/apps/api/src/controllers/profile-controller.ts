@@ -8,6 +8,16 @@ import { ProfileSignal } from "../models/ProfileSignal";
 import { Match } from "../models/Match";
 import { requirePaidEventAccess } from "../lib/event-access";
 import { requireDatingApp } from "../lib/feature-config";
+import { Media } from "../models/Media";
+
+function mediaIdFromUrl(value: string) {
+  try {
+    const pathname = new URL(value, "https://dating.project-iskra.com").pathname;
+    return pathname.match(/^\/api\/v1\/media\/([a-f\d]{24})$/i)?.[1] || null;
+  } catch {
+    return null;
+  }
+}
 
 const profileSchema = z.object({
   eventId: z.string().refine(Types.ObjectId.isValid, "Invalid event."),
@@ -16,7 +26,7 @@ const profileSchema = z.object({
   intentions: z.array(z.enum(["Dating", "New friends", "Drinks", "Dancing", "Group hangout", "Networking"])).min(1).max(4),
   promptAnswer: z.string().trim().max(140).optional(),
   zone: z.string().trim().max(60).optional(),
-  photos: z.array(z.string().url()).max(6).optional(),
+  photos: z.array(z.string().trim().max(512).refine((value) => Boolean(mediaIdFromUrl(value)), "Use an uploaded ISKRA image.")).max(6).optional(),
   competitionConsent: z.boolean().optional()
 });
 
@@ -39,6 +49,15 @@ export async function upsertEventProfile(req: Request, res: Response) {
   });
   if (!event) return res.status(409).json({ message: "This venue session is not active." });
   await requirePaidEventAccess(req.auth!.userId, event._id);
+  const photoIds = (input.photos || []).map(mediaIdFromUrl).filter((id): id is string => Boolean(id));
+  if (photoIds.length) {
+    const ownedPhotos = await Media.countDocuments({
+      _id: { $in: photoIds }, eventId: event._id, userId: req.auth!.userId, kind: "profile"
+    });
+    if (ownedPhotos !== new Set(photoIds).size) {
+      return res.status(400).json({ message: "One or more profile photos are not owned by this account." });
+    }
+  }
   const existed = await EventProfile.exists({ eventId: event._id, userId: req.auth!.userId });
 
   const competitionEligible = Boolean(input.competitionConsent && input.photos?.length);
@@ -46,6 +65,7 @@ export async function upsertEventProfile(req: Request, res: Response) {
     { eventId: event._id, userId: req.auth!.userId },
     {
       ...input,
+      ...(input.photos ? { photos: photoIds.map((id) => `/api/v1/media/${id}`) } : {}),
       venueId: event.venueId,
       userId: req.auth!.userId,
       visibility: "everyone",
@@ -64,8 +84,17 @@ export async function getMyEventProfile(req: Request, res: Response) {
   const eventId = String(req.params.eventId || "");
   if (!Types.ObjectId.isValid(eventId)) return res.status(400).json({ message: "Invalid event." });
   await requirePaidEventAccess(req.auth!.userId, eventId);
-  const profile = await EventProfile.findOne({ eventId, userId: req.auth!.userId, expiresAt: { $gt: new Date() } }).lean();
-  res.json({ profile: profile || null });
+  const [profile, user] = await Promise.all([
+    EventProfile.findOne({ eventId, userId: req.auth!.userId, expiresAt: { $gt: new Date() } }).lean(),
+    User.findById(req.auth!.userId).select("dateOfBirth gender").lean()
+  ]);
+  res.json({
+    profile: profile ? {
+      ...profile,
+      age: user?.dateOfBirth ? ageFrom(user.dateOfBirth) : null,
+      gender: user?.gender || null
+    } : null
+  });
 }
 
 export async function listDiscoverProfiles(req: Request, res: Response) {

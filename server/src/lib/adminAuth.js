@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import Admin from '../models/Admin.js';
+import { secretValue } from '../config/security.js';
 
 const ROUNDS   = Number(process.env.BCRYPT_ROUNDS || 12);
 const LOCK_MS  = Number(process.env.ADMIN_LOCK_MS || 15 * 60_000);
@@ -8,11 +9,7 @@ const MAX_FAILS = 5;
 export const COOKIE = 'iskra_admin_session';
 const TTL_HOURS = 12;
 
-const secret = () => {
-  const s = process.env.JWT_SECRET;
-  if(!s || s.length < 16) throw new Error('JWT_SECRET must be set to a long random string.');
-  return s;
-};
+const secret = () => secretValue('JWT_SECRET', { minLength:32 });
 
 export const hashPassword = pw => bcrypt.hash(pw, ROUNDS);
 

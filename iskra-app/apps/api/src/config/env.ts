@@ -8,7 +8,7 @@ const envPath = path.resolve(currentDirectory, "../../.env");
 
 config({ path: envPath });
 
-const envSchema = z.object({
+export const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().default(4311),
   CLIENT_ORIGIN: z.string().url().default("http://localhost:5174"),
@@ -28,6 +28,34 @@ const envSchema = z.object({
   STRIPE_SECRET_KEY: z.string().default(""),
   STRIPE_WEBHOOK_SECRET: z.string().default(""),
   MAPBOX_PUBLIC_TOKEN: z.string().min(1).default("pk.local-placeholder")
+}).superRefine((values, context) => {
+  if (values.NODE_ENV !== "production") return;
+
+  const productionSecrets = [
+    ["JWT_ACCESS_SECRET", values.JWT_ACCESS_SECRET],
+    ["JWT_REFRESH_SECRET", values.JWT_REFRESH_SECRET],
+    ["ZONE_QR_SECRET", values.ZONE_QR_SECRET]
+  ] as const;
+
+  for (const [name, value] of productionSecrets) {
+    if (value.length < 32 || value.startsWith("local-development-")) {
+      context.addIssue({ code: "custom", path: [name], message: `${name} must be a unique secret of at least 32 characters in production.` });
+    }
+  }
+  if (new Set(productionSecrets.map(([, value]) => value)).size !== productionSecrets.length) {
+    context.addIssue({ code: "custom", path: ["JWT_ACCESS_SECRET"], message: "Production signing secrets must be different from each other." });
+  }
+  if (!values.CLIENT_ORIGIN.startsWith("https://")) {
+    context.addIssue({ code: "custom", path: ["CLIENT_ORIGIN"], message: "CLIENT_ORIGIN must use HTTPS in production." });
+  }
+  const promoUrl = new URL(values.PROMO_API_URL);
+  const privateServiceUrl = promoUrl.protocol === "http:" && /^[a-z0-9-]+$/i.test(promoUrl.hostname);
+  if (promoUrl.protocol !== "https:" && !privateServiceUrl) {
+    context.addIssue({ code: "custom", path: ["PROMO_API_URL"], message: "PROMO_API_URL must use HTTPS or a private container hostname in production." });
+  }
+  if (/127\.0\.0\.1|localhost/.test(values.MONGODB_URI)) {
+    context.addIssue({ code: "custom", path: ["MONGODB_URI"], message: "A dedicated non-local MongoDB database is required in production." });
+  }
 });
 
 export const env = envSchema.parse(process.env);

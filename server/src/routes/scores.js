@@ -3,6 +3,7 @@ import Player from '../models/Player.js';
 import { attemptsLeft, useAttempt } from '../lib/attempts.js';
 import ArcadeEntry from '../models/ArcadeEntry.js';
 import {currentContest,contestPublic,entryFor} from '../lib/arcadeContest.js';
+import crypto from 'node:crypto';
 
 const r = Router();
 
@@ -51,7 +52,9 @@ r.post('/', async (req,res,next)=>{
 
     const player = await Player.findById(playerId).select('+token');
     if(!player)                return res.status(404).json({error:'Player not found',code:'NOT_FOUND'});
-    if(player.token !== token) return res.status(401).json({error:'Invalid session token.',code:'AUTH'});
+    const supplied=Buffer.from(String(token)),expected=Buffer.from(String(player.token));
+    if(supplied.length!==expected.length||!supplied.length||!crypto.timingSafeEqual(supplied,expected))
+      return res.status(401).json({error:'Invalid session token.',code:'AUTH'});
 
     const contest=await currentContest();
     if(!contest||contest.status!=='open')

@@ -33,12 +33,15 @@ export class LocalFileSystemStorageService {
 
     await fs.mkdir(path.dirname(absolutePath), { recursive: true });
 
-    const transformer = sharp(input.fileBuffer).rotate().resize(1440, 1440, {
-      fit: "inside",
-      withoutEnlargement: true
-    });
-    const metadata = await transformer.metadata();
-    const output = await transformer.webp({ quality: 84 }).toBuffer();
+    const { data: output, info } = await sharp(input.fileBuffer, { limitInputPixels: 40_000_000, failOn: "warning" })
+      .rotate()
+      .resize(1440, 1440, {
+        fit: "inside",
+        withoutEnlargement: true
+      })
+      .webp({ quality: 84 })
+      .timeout({ seconds: 25 })
+      .toBuffer({ resolveWithObject: true });
 
     await fs.writeFile(absolutePath, output);
 
@@ -51,8 +54,8 @@ export class LocalFileSystemStorageService {
       kind: input.kind,
       mimeType: "image/webp",
       path: relativePath,
-      width: metadata.width,
-      height: metadata.height,
+      width: info.width,
+      height: info.height,
       sizeBytes: output.length
     });
   }
@@ -95,4 +98,3 @@ export class LocalFileSystemStorageService {
 }
 
 export const mediaStorageService = new LocalFileSystemStorageService();
-

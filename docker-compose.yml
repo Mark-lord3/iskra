@@ -1,4 +1,4 @@
-name: iskra
+name: ${COMPOSE_PROJECT_NAME:-iskra}
 
 # ISKRA runs as a single container and is published by the Caddy that already
 # serves orvadora.com on this box. That Caddy reaches it over the shared
@@ -12,16 +12,18 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: iskra-promo:latest
-    container_name: iskra-app
+    image: ${ISKRA_IMAGE:-iskra-promo:latest}
+    container_name: ${ISKRA_CONTAINER_NAME:-iskra-app}
     restart: unless-stopped
     init: true
     env_file:
-      - ./server/.env          # supplies MONGODB_URI
+      - ${ISKRA_ENV_FILE:-./server/.env}
     environment:
       NODE_ENV: production
       PORT: "4310"
-      CLIENT_ORIGIN: https://iskra.orvadora.com
+      DEPLOY_ENV: ${DEPLOY_ENV:-development}
+      STRIPE_MODE: ${STRIPE_MODE:-test}
+      CLIENT_ORIGIN: ${CLIENT_ORIGIN:-http://localhost:5173}
     expose:
       - "4310"
     healthcheck:

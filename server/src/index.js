@@ -4,7 +4,10 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { getSeo, SEO_IMAGE_URL } from '../../shared/seo.js';
+import { injectSeo } from './lib/seoHtml.js';
 
 import { connectDB } from './db.js';
 import events from './routes/events.js';
@@ -34,19 +37,22 @@ import { engine } from './poker/runtime.js';
 import { wirePoker } from './poker/wiring.js';
 import { accountFromCookieHeader } from './lib/accountAuth.js';
 import Seat from './models/PokerSeat.js';
+import {assertStripeConfiguration,stripeEnv} from './config/stripe.js';
+import {databaseUri} from './config/database.js';
+import {assertSecurityConfiguration,originAllowed} from './config/security.js';
+import {requireTrustedBrowserOrigin,securityHeaders} from './lib/securityHttp.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+assertStripeConfiguration();
+assertSecurityConfiguration();
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-const origins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
-  .split(',').map(s=>s.trim()).filter(Boolean);
-const isLocalDevOrigin = origin => process.env.NODE_ENV !== 'production'
-  && /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin || '');
-
 app.set('trust proxy', 1);
+app.disable('x-powered-by');
+app.use(securityHeaders);
 app.use(cors({ credentials:true, origin:(origin,cb)=>{
-  if(!origin || origins.includes(origin) || isLocalDevOrigin(origin)) return cb(null,true);
+  if(!origin || originAllowed(origin)) return cb(null,true);
   const error = new Error('Origin not allowed: '+origin);
   error.status = 403;
   cb(error);
@@ -56,6 +62,7 @@ app.use((req,res,next)=>{
   res.set('x-request-id',req.requestId);
   next();
 });
+app.use(requireTrustedBrowserOrigin);
 app.post('/api/tickets/webhook', express.raw({type:'application/json'}), stripeWebhook);
 app.use(cookieParser());
 app.use(express.json({ limit:'32kb' }));
@@ -82,18 +89,39 @@ const writeLimiter = rateLimit({
 const analyticsLimiter = rateLimit({
   windowMs:60_000,max:300,standardHeaders:true,legacyHeaders:false,handler:rateLimitHandler
 });
+const accountAuthLimiter = rateLimit({
+  windowMs:15*60_000,max:Number(process.env.ACCOUNT_AUTH_RATE_LIMIT_MAX)||12,
+  standardHeaders:true,legacyHeaders:false,handler:rateLimitHandler
+});
+const accountRegisterLimiter = rateLimit({
+  windowMs:60*60_000,max:Number(process.env.ACCOUNT_REGISTER_RATE_LIMIT_MAX)||10,
+  standardHeaders:true,legacyHeaders:false,handler:rateLimitHandler
+});
+const promoLimiter = rateLimit({
+  windowMs:60_000,max:Number(process.env.PROMO_RATE_LIMIT_MAX)||60,
+  standardHeaders:true,legacyHeaders:false,handler:rateLimitHandler
+});
+const customOrderLimiter=rateLimit({
+  windowMs:60_000,max:Number(process.env.CUSTOM_ORDER_RATE_LIMIT_MAX)||30,
+  standardHeaders:true,legacyHeaders:false,handler:rateLimitHandler
+});
+app.use(['/api/account/login','/api/account/forgot-password','/api/account/reset-password'],accountAuthLimiter);
+app.use('/api/account/register',accountRegisterLimiter);
+app.use('/api/promo/validate',promoLimiter);
+app.use('/api/tickets/custom-order/preview',customOrderLimiter);
 app.use('/api', limiter);
 app.use(['/api/players','/api/scores','/api/subscribe','/api/orders','/api/contact','/api/tickets/checkout'], writeLimiter);
 
 app.get('/api/health', (_req,res)=>res.json({
   ok:true,service:'iskra-promo',
+  environment:process.env.DEPLOY_ENV || 'development',
   integrations:{
-    stripe:Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET),
+    stripe:Boolean(stripeEnv().secretKey && stripeEnv().webhookSecret),
     resend:Boolean(process.env.RESEND_API_KEY)
   }
 }));
 app.get('/api/public-config', (_req,res)=>res.json({
-  stripePublishableKey:process.env.STRIPE_PUBLISHABLE_KEY || null
+  stripePublishableKey:stripeEnv().publishableKey || null
 }));
 app.use('/api/events', events);
 app.use('/api/players', players);
@@ -140,10 +168,22 @@ app.use('/api', (req,res)=>res.status(404).json({
   error:'API endpoint not found.',code:'NOT_FOUND',requestId:req.requestId
 }));
 
-// Serve the built React app in production (single-origin deploy on iskra.orvadora.com)
+// Serve the built React app in production as a same-origin deployment.
 const dist = path.resolve(__dirname, '../../client/dist');
-app.use(express.static(dist));
-app.get(/^(?!\/api).*/, (_req,res)=>res.sendFile(path.join(dist,'index.html')));
+const indexFile = path.join(dist,'index.html');
+let indexTemplate = null;
+
+app.use(express.static(dist,{ index:false }));
+app.get(/^(?!\/api).*/, (req,res,next)=>{
+  try {
+    indexTemplate ||= readFileSync(indexFile,'utf8');
+    const seo = getSeo(req.path,'en');
+    if (!seo.indexable) res.set('X-Robots-Tag','noindex, nofollow');
+    res.status(seo.known ? 200 : 404).type('html').send(injectSeo(indexTemplate,seo,SEO_IMAGE_URL));
+  } catch (error) {
+    next(error);
+  }
+});
 
 app.use((err,req,res,_next)=>{
   const malformedJson=err instanceof SyntaxError && err.status === 400 && 'body' in err;
@@ -156,7 +196,7 @@ app.use((err,req,res,_next)=>{
   });
 });
 
-connectDB(process.env.MONGODB_URI)
+connectDB(databaseUri())
   .then(()=>seedFirstAdmin())
   .then(()=>{
     const maintainArcade=()=>currentContest().then(()=>retryArcadeResultEmails()).catch(error=>console.error('Arcade contest maintenance failed:',error.message));
@@ -176,7 +216,8 @@ connectDB(process.env.MONGODB_URI)
         if(!seat)return null;   // spectating another table is not allowed
         return {userId:String(user._id),name:user.name,seatIndex:seat.seatIndex};
       },
-      snapshot:(tableId,userId)=>engine.stateFor(tableId,userId)
+      snapshot:(tableId,userId)=>engine.stateFor(tableId,userId),
+      allowOrigin:originAllowed
     });
     hub.onPresence=(tableId,viewer,connected)=>engine.setPresence(tableId,viewer.userId,connected);
     hub.onIntent=async (ws,msg)=>{

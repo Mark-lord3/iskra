@@ -211,7 +211,6 @@ export default function ContactPage({ onTickets }) {
               </figure>
               <div className="ct-direct">
                 <h3 className="mono">{t('ct.direct')}</h3>
-                <a href={`mailto:${SITE.email}`} className="ct-mail">{SITE.email}</a>
                 <p className="ct-addr">{SITE.address}<br />{SITE.hours}</p>
               </div>
               {socials.length > 0 && (

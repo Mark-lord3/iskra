@@ -6,6 +6,7 @@ import { env } from "./config/env";
 import { connectDatabase } from "./db";
 import { startCleanupJob } from "./jobs/event-cleanup";
 import { registerSocketHandlers } from "./socket/register-socket";
+import { isTrustedOrigin } from "./middleware/security";
 
 async function findAvailablePort(startPort: number, attempts = 10) {
   for (let offset = 0; offset < attempts; offset += 1) {
@@ -34,6 +35,10 @@ async function start() {
   const app = createApp();
   const server = http.createServer(app);
   const io = new Server(server, {
+    maxHttpBufferSize: 16 * 1024,
+    allowRequest(request, callback) {
+      callback(null, isTrustedOrigin(request.headers.origin));
+    },
     cors: {
       origin: env.CLIENT_ORIGIN,
       credentials: true

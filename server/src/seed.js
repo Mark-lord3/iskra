@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import mongoose from 'mongoose';
 import { connectDB } from './db.js';
+import {databaseUri} from './config/database.js';
 import Event from './models/Event.js';
 import PromoCode from './models/PromoCode.js';
 import Campaign from './models/Campaign.js';
@@ -18,7 +19,7 @@ const RETIRED_EVENT_SLUGS = [
 
 const PUBLIC_EVENTS = [{
   slug:'project-iskra-grand-opening',
-  date:new Date('2026-08-28T19:00:00Z'),
+  date:new Date('2026-08-29T02:00:00Z'),
   title:'Project ISKRA Grand Opening',
   support:'DJ MLNK · Slavic Music',
   room:'Muzique Nightclub',
@@ -48,7 +49,7 @@ const CODES = [
 ];
 
 const run = async () => {
-  await connectDB(process.env.MONGODB_URI);
+  await connectDB(databaseUri());
 
   await Event.updateMany({slug:{$in:RETIRED_EVENT_SLUGS}},{$set:{active:false}});
   console.log('  ✓ retired incorrect placeholder events');

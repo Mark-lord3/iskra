@@ -22,10 +22,11 @@ export class ApiError extends Error {
 
 async function performRequest(path,options){
   const controller=new AbortController();
-  const timeout=setTimeout(()=>controller.abort(),15000);
+  const timeout=setTimeout(()=>controller.abort(),Number(options.timeoutMs)||15000);
+  const {timeoutMs:_,...fetchOptions}=options;
   try{
     const res=await fetch(BASE+'/api'+path,{
-      ...options,
+      ...fetchOptions,
       credentials:'include',
       headers:{'Content-Type':'application/json',...options.headers},
       credentials:'include',   // carries the httpOnly admin session cookie
@@ -65,7 +66,7 @@ export const api = {
   events:      ()               => request('/events'),
   banners:     ()               => request('/admin/banners'),
   signup:      (body)           => request('/players',  { method:'POST', body }),
-  playerStatus:(id)             => request(`/players/${id}`),
+  playerStatus:(id,token)       => request(`/players/${id}`,{headers:{'x-player-token':token}}),
   leaderboard: (playerId, limit = 10) =>
     request(`/leaderboard?limit=${limit}` + (playerId ? `&playerId=${playerId}` : '')),
   checkName:   (handle)          => request('/players/check-name', { method:'POST', body:{ handle } }),
@@ -111,11 +112,13 @@ export const api = {
   adminScannerLog:      (page=1,limit=10) => request(`/admin/scanner/log?page=${page}&limit=${limit}`, { headers:{} }),
   adminScannerRevoke:   (id)    => request(`/admin/scanner/sessions/${id}/revoke`, { method:'POST' }),
   submitScore: (body)           => request('/scores',   { method:'POST', body }),
-  validateCode:(code,qty,eventSlug) => request('/promo/validate', { method:'POST', body:{code,qty,eventSlug} }),
+  validateCode:(code,qty,eventSlug,tierKey) => request('/promo/validate', { method:'POST', body:{code,qty,eventSlug,tierKey} }),
   subscribe:   (email, path = location.pathname) => request('/subscribe',{ method:'POST', body:{ email, path } }),
   /* Authoritative pricing. The offers calculator computes locally for instant
      feedback and then confirms the figure here before showing it as final. */
   ticketQuote:(body)            => request('/tickets/quote', { method:'POST', body }),
+  customOrderPreview:(body)     => request('/tickets/custom-order/preview', {method:'POST',body}),
+  vipAvailability:(eventSlug)   => request('/tickets/vip-availability?eventSlug=' + encodeURIComponent(eventSlug)),
   checkoutTickets:(body)        => request('/tickets/checkout', { method:'POST', body }),
   completeCheckout:(sessionId)  => request('/tickets/checkout/complete?sessionId=' + encodeURIComponent(sessionId)),
   ticketWallet:(tickets)        => request('/tickets/wallet', { method:'POST', body:{tickets} }),
@@ -126,17 +129,28 @@ export const api = {
   track:       (body)           => request('/analytics',{ method:'POST', body }),
   adminSummary:()            => request('/admin/summary', { headers:{ 'Content-Type':'application/json' } }),
   adminOrders:(page=1,limit=10) => request(`/admin/orders?page=${page}&limit=${limit}`, { headers:{} }),
+  adminResendOrderTickets:(id) => request(`/admin/orders/${encodeURIComponent(id)}/resend-tickets`, {method:'POST',timeoutMs:30000}),
+  adminResendTicketOrders:(orderIds) => request('/admin/orders/resend-tickets', {method:'POST',body:{scope:'selected',orderIds},timeoutMs:120000}),
+  adminResendAllTicketOrders:() => request('/admin/orders/resend-tickets', {method:'POST',body:{scope:'all'},timeoutMs:120000}),
   adminEvent:  (body)      => request('/admin/events', { method:'POST', headers:{ 'Content-Type':'application/json' }, body }),
   adminDeleteEvent:(slug)  => request('/admin/events/' + encodeURIComponent(slug), {method:'DELETE'}),
   adminBanner: (body)      => request('/admin/banners', { method:'POST', headers:{ 'Content-Type':'application/json' }, body }),
   adminMessage:(id, status='read') => request(`/admin/messages/${id}`, { method:'PATCH', headers:{ 'Content-Type':'application/json' }, body:{status} }),
+  adminMessageReply:(id, body, subject) => request(`/admin/messages/${id}/reply`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body:{ body, subject } }),
   adminVerifyTicket:(code) => request('/admin/tickets/verify', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:{code} }),
   adminRedeemTicket:(id)   => request(`/admin/tickets/${id}/redeem`, { method:'PATCH', headers:{ 'Content-Type':'application/json' } }),
   adminTicketStatus:(id, status) => request(`/admin/tickets/${id}/status`, { method:'PATCH', headers:{ 'Content-Type':'application/json' }, body:{status} }),
   adminGallery:(body)      => request('/admin/gallery', { method:'POST', headers:{ 'Content-Type':'application/json' }, body }),
   adminDeleteGallery:(id)  => request(`/admin/gallery/${id}`, { method:'DELETE', headers:{ 'Content-Type':'application/json' } }),
   adminSiteStatus:(body)   => request('/admin/site-status', { method:'PUT', headers:{ 'Content-Type':'application/json' }, body }),
-  adminDatingApp:(body)    => request('/admin/dating-app', { method:'PUT', headers:{ 'Content-Type':'application/json' }, body })
+  adminDatingApp:(body)    => request('/admin/dating-app', { method:'PUT', headers:{ 'Content-Type':'application/json' }, body }),
+  adminSparkRush:(body)    => request('/admin/spark-rush', { method:'PUT', headers:{ 'Content-Type':'application/json' }, body })
+  ,adminCustomOrders:(page=1,query='',status='') => request(`/admin/custom-orders?page=${page}&query=${encodeURIComponent(query)}&status=${encodeURIComponent(status)}`)
+  ,adminCreateCustomOrder:body => request('/admin/custom-orders',{method:'POST',body})
+  ,adminUpdateCustomOrder:(id,body) => request(`/admin/custom-orders/${encodeURIComponent(id)}`,{method:'PATCH',body})
+  ,adminDuplicateCustomOrder:id => request(`/admin/custom-orders/${encodeURIComponent(id)}/duplicate`,{method:'POST'})
+  ,adminRegenerateCustomOrder:id => request(`/admin/custom-orders/${encodeURIComponent(id)}/regenerate-code`,{method:'POST'})
+  ,adminCancelCustomOrder:id => request(`/admin/custom-orders/${encodeURIComponent(id)}/cancel`,{method:'POST'})
   ,pokerTournaments:() => request('/poker/tournaments')
   ,pokerTournament:(id,locale='en') => request(`/poker/tournaments/${encodeURIComponent(id)}?locale=${locale}`)
   ,pokerLobby:id => request(`/poker/tournaments/${encodeURIComponent(id)}/lobby`)

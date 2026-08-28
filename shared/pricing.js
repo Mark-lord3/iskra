@@ -11,9 +11,12 @@
 /** Tickets per order. */
 export const MIN_QTY = 1;
 export const MAX_QTY = 20;
+export const VIP_TABLE_PRICE = 140;
+export const VIP_TABLE_CAPACITY = 4;
+export const VIP_TABLE_SEATS = 4;
 
 export const TIER_KEYS = ['general', 'early', 'booth'];
-const TIER_MULTIPLIER = { general: 1, early: 1.2, booth: 8 };
+const TIER_MULTIPLIER = { general: 1, early: 1.2 };
 const VENUE_TIME_ZONE = 'America/Toronto';
 
 const dateKey = parts => Number(`${parts.year}${parts.month}${parts.day}`);
@@ -36,6 +39,7 @@ export function tierAvailability(eventDate, now = new Date()){
 /** A tier's unit price, derived from the event's base price. */
 export function tierPrice(tierKey, base){
   const key = TIER_KEYS.includes(tierKey) ? tierKey : 'general';
+  if(key === 'booth') return VIP_TABLE_PRICE;
   const price = Math.max(0, Number(base) || 0) * TIER_MULTIPLIER[key];
   return key === 'general' ? Math.max(0, Number(base) || 0) : Math.round(price);
 }
@@ -44,6 +48,69 @@ export const clampQty = qty =>
   Math.min(MAX_QTY, Math.max(MIN_QTY, Math.floor(Number(qty) || MIN_QTY)));
 
 export const round2 = value => Math.round((Number(value) || 0) * 100) / 100;
+
+export function customDiscountAmount(subtotal, type = 'none', value = 0){
+  const amount = Math.max(0, Number(subtotal) || 0);
+  const discountValue = Math.max(0, Number(value) || 0);
+  if(type === 'percent') return round2(Math.min(amount, amount * Math.min(100, discountValue) / 100));
+  if(type === 'fixed') return round2(Math.min(amount, discountValue));
+  return 0;
+}
+
+/** Server-defined package pricing used by private custom orders. */
+export function customOrderQuote({admission = {}, vip = {}, promo = null, allowPromoStacking = false} = {}){
+  const admissionQty = Math.max(0, Math.min(MAX_QTY, Math.floor(Number(admission.qty) || 0)));
+  const vipQty = Math.max(0, Math.min(VIP_TABLE_CAPACITY, Math.floor(Number(vip.qty) || 0)));
+  const admissionUnit = round2(Math.max(0, Number(admission.unitPrice) || 0));
+  const vipUnit = round2(Math.max(0, Number(vip.unitPrice) || 0));
+  const admissionSubtotal = round2(admissionQty * admissionUnit);
+  const vipSubtotal = round2(vipQty * vipUnit);
+  const admissionDiscount = customDiscountAmount(admissionSubtotal, admission.discount?.type||admission.discountType, admission.discount?.value??admission.discountValue);
+  const vipDiscount = customDiscountAmount(vipSubtotal, vip.discount?.type||vip.discountType, vip.discount?.value??vip.discountValue);
+  const admissionAfterCustom = round2(admissionSubtotal - admissionDiscount);
+  const eligibility = allowPromoStacking && promo ? promoEligibility(promo, admissionQty) : {eligible:false,reason:'STACKING_DISABLED'};
+  const promoDiscount = eligibility.eligible
+    ? promoAmount(promo, admissionAfterCustom, admissionQty ? admissionAfterCustom / admissionQty : 0, admissionQty)
+    : 0;
+  const subtotal = round2(admissionSubtotal + vipSubtotal);
+  const total = Math.max(0, round2(admissionAfterCustom - promoDiscount + vipSubtotal - vipDiscount));
+  return {
+    admissionQty,vipQty,admissionUnit,vipUnit,admissionSubtotal,vipSubtotal,
+    admissionDiscount,vipDiscount,promoDiscount,subtotal,total,saved:round2(subtotal-total),
+    lines:[
+      admissionQty ? {type:'admission',label:'Custom admission package',qty:admissionQty,unit:admissionUnit,subtotal:admissionSubtotal,total:round2(admissionAfterCustom-promoDiscount)} : null,
+      vipQty ? {type:'vip',label:'Custom VIP package',qty:vipQty,unit:vipUnit,subtotal:vipSubtotal,total:round2(vipSubtotal-vipDiscount)} : null
+    ].filter(Boolean),
+    equivalentTickets:admissionUnit>0?round2((admissionDiscount+promoDiscount)/admissionUnit):0,
+    promo:promo ? {...eligibility,code:promo.code,applied:eligibility.eligible&&promoDiscount>0} : null
+  };
+}
+
+/** Admission discount earned by each of the four table positions. */
+export function vipTableDiscount(tableSlot){
+  const slot = Math.max(1, Math.min(VIP_TABLE_CAPACITY, Math.floor(Number(tableSlot) || 1)));
+  return slot <= 2 ? 0.20 : 0.40;
+}
+
+/** One table plus separately priced, mandatory admission tickets. */
+export function vipTableQuote({base, admissionTierKey = 'general', admissionQty = 1, tableSlot = 1}){
+  const qty = Math.min(VIP_TABLE_SEATS, Math.max(1, Math.floor(Number(admissionQty) || 1)));
+  const admissionUnit = tierPrice(admissionTierKey, base);
+  const admissionSubtotal = round2(admissionUnit * qty);
+  const discountRate = vipTableDiscount(tableSlot);
+  const admissionDiscount = round2(admissionSubtotal * discountRate);
+  const admissionTotal = round2(admissionSubtotal - admissionDiscount);
+  const subtotal = round2(VIP_TABLE_PRICE + admissionSubtotal);
+  const total = round2(VIP_TABLE_PRICE + admissionTotal);
+  return {
+    unit:admissionUnit,qty,tableSlot,tablePrice:VIP_TABLE_PRICE,
+    admissionTierKey,admissionUnit,admissionSubtotal,admissionDiscount,admissionTotal,
+    discountRate,discountPercent:Math.round(discountRate * 100),subtotal,total,
+    saved:admissionDiscount,equivalentTickets:admissionUnit > 0 ? round2(admissionDiscount / admissionUnit) : 0,
+    lines:[{type:'vip-admission',amount:admissionDiscount,percentOff:Math.round(discountRate * 100),label:`VIP table admission, ${Math.round(discountRate * 100)}% off`}],
+    promo:null
+  };
+}
 
 /**
  * Whether a promotion may be used at this quantity.
@@ -82,7 +149,11 @@ export function quote({ base, tierKey = 'general', qty = 1, promo = null }){
   const count = clampQty(qty);
   const unit = tierPrice(tierKey, base);
   const subtotal = round2(unit * count);
-  const eligibility = promoEligibility(promo, count);
+  // VIP tables are fixed-price packages. No campaign, game reward, private
+  // code, percentage, or flat-price promotion may reduce this tier.
+  const eligibility = tierKey === 'booth' && promo
+    ? { eligible:false, reason:'VIP_EXCLUDED', need:0, minQty:Math.max(1, Number(promo.minQty) || 1) }
+    : promoEligibility(promo, count);
   const promoDiscount = eligibility.eligible ? promoAmount(promo, subtotal, unit, count) : 0;
   const lines = promoDiscount > 0 ? [promoLine(promo, promoDiscount)] : [];
   let total = round2(subtotal - promoDiscount);

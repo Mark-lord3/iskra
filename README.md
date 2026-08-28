@@ -1,6 +1,6 @@
 # ISKRA — promo site
 
-Nightclub promo site for **iskra.orvadora.com**. React (Vite) front end, Node/Express +
+Nightclub platform for **project-iskra.com**, with **iskra.orvadora.com** retained as staging. React (Vite) front end, Node/Express +
 MongoDB back end, with a playable arcade promotion ("Spark Rush") whose leaderboard and
 prize codes are enforced server-side.
 
@@ -146,7 +146,7 @@ access admin or customer APIs. Customer QR tickets saved on a device remain avai
 4. Add `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, and
    `STRIPE_MEMBERSHIP_PRICE_ID`, `RESEND_API_KEY`, `VISITOR_SIGNING_SECRET`,
    `SCANNER_SECRET`, and `SCANNER_PASSCODE` to `server/.env`, then register
-   `https://iskra.orvadora.com/api/tickets/webhook` in Stripe for
+   `https://project-iskra.com/api/tickets/webhook` in Stripe live mode for
    `checkout.session.completed`, `checkout.session.async_payment_succeeded`, and
    `checkout.session.expired` events.
    Set `RESEND_FROM` if the verified sender differs from
@@ -169,15 +169,36 @@ collections can remain in place because older code does not read them. Never rol
 webhook data by deleting MongoDB records; replay verified Stripe events after restoring application
 code if subscription synchronization needs repair.
 
-## Deploying to iskra.orvadora.com
+## Staging and production deployment
 
-**Live at https://iskra.orvadora.com** (Let's Encrypt cert, valid to 18 Nov 2026).
+The environments are intentionally selected by different commands. Running `./deploy.sh`
+without an environment fails rather than guessing.
+
+| Environment | URL | Container | Remote directory | Stripe mode |
+|---|---|---|---|---|
+| Staging | `https://iskra.orvadora.com` | `iskra-staging` | `/root/home/iskra-staging` | test |
+| Production | `https://project-iskra.com` | `iskra-production` | `/root/home/iskra-production` | live |
 
 ```bash
-./deploy.sh          # upload, build, restart
-./deploy.sh --seed   # same, then reload events/promo codes/demo players
-./deploy.sh --logs   # tail the app container
+npm run deploy:staging
+npm run deploy:production
+
+# One-time origin setup before project-iskra.com DNS is moved to the VPS
+./deploy-production.sh --prepare
+
+./deploy-staging.sh --logs
+./deploy-production.sh --logs
+./deploy-staging.sh --seed
+./deploy-production.sh --seed
 ```
+
+Both commands default to `server/.env`. Set `ISKRA_STAGING_ENV_FILE` or
+`ISKRA_PRODUCTION_ENV_FILE` to use separate local secret files. Production sets
+`STRIPE_MODE=live`, prefers the `_live` variables, and refuses to start unless the selected
+keys have `sk_live_`, `pk_live_`, and `whsec_` prefixes. Staging sets `STRIPE_MODE=test` and
+requires test keys. Staging automatically changes the database name to an `_staging` suffix;
+set `MONGODB_URI_staging` to override it. Production uses `MONGODB_URI_live` when present,
+otherwise `MONGODB_URI`.
 
 ### How it fits on the VPS
 
@@ -187,20 +208,31 @@ proxy; it runs one container that joins the existing `orvadora_app` network, and
 orvadora Caddy publishes it:
 
 ```
-/root/home/orvadora    web + api + caddy   (ports 80/443)   ← existing, untouched
-/root/home/iskra       iskra-app :4310     (internal only)  ← this project
+/root/home/orvadora           web + api + caddy (ports 80/443)
+/root/home/iskra-staging      iskra-staging :4310 (internal only)
+/root/home/iskra-production   iskra-production :4310 (internal only)
 ```
 
-The site block appended to `/root/home/orvadora/Caddyfile`:
+The deployment script manages marked site blocks in `/root/home/orvadora/Caddyfile` and
+routes each hostname to its own container. It validates the Caddyfile before recreating only
+the shared Caddy container.
 
 ```
+project-iskra.com {
+    reverse_proxy iskra-production:4310
+}
+
+www.project-iskra.com {
+    redir https://project-iskra.com{uri} permanent
+}
+
 iskra.orvadora.com {
-    encode zstd gzip
-    reverse_proxy iskra-app:4310
+    reverse_proxy iskra-staging:4310
 }
 ```
 
-Timestamped backups of that file are kept next to it (`Caddyfile.bak.*`).
+Backups are kept next to it as `Caddyfile.bak.iskra-production` and
+`Caddyfile.bak.iskra-staging`.
 
 ### Two traps this deploy hit — worth knowing before editing that Caddyfile
 
@@ -212,7 +244,7 @@ Timestamped backups of that file are kept next to it (`Caddyfile.bak.*`).
    passes. Validate the host file in a throwaway container instead, and pass
    `ACME_EMAIL` — the config references `{$ACME_EMAIL}` and fails to parse without it.
 
-`deploy.sh` does both correctly. It only recreates `caddy`; `web` and `api` keep running,
+The deploy scripts do both correctly. They only recreate `caddy`; `web` and `api` keep running,
 so orvadora.com drops for roughly a second during a deploy.
 
 ### SSH
@@ -222,9 +254,8 @@ A dedicated key was generated at `~/.ssh/iskra_deploy` and added to the server's
 
 ### Secrets
 
-`server/.env` is gitignored but **is** uploaded by rsync — that is how `MONGODB_URI` reaches
-the server. It is never baked into the image (`.dockerignore` excludes all `.env` files);
-compose injects it at runtime.
+The selected environment file is uploaded as `server/.env.runtime`. It is never baked into
+the image (`.dockerignore` excludes all `.env` files); Compose injects it at runtime.
 
 That file also holds `SSHline` and `Access_toVPS`. The app never reads them. A VPS root
 password in an application env file will eventually leak — move it to a password manager
@@ -236,12 +267,12 @@ Multi-stage: node:22-alpine builds the client, the runtime stage carries product
 deps plus `client/dist` only. 276 MB, runs as the unprivileged `node` user, with a
 healthcheck on `/api/health`.
 
-### Manual equivalent
+### DNS for project-iskra.com
 
-```bash
-ssh root@2.25.93.183
-cd /root/home/iskra
-docker compose up -d --build
-docker compose exec app node server/src/seed.js
-docker compose logs -f
-```
+GoDaddy is the registrar, but the authoritative nameservers are Cloudflare. Create an `A`
+record for `@` pointing to `2.25.93.183` and a `CNAME` record for `www` pointing to
+`project-iskra.com` in Cloudflare. Keep Cloudflare SSL/TLS mode at `Full (strict)` after Caddy
+has issued the origin certificate. Do not add the records in GoDaddy while the Cloudflare
+nameservers remain active.
+
+The full cutover checklist is in `DNS-CUTOVER.md`.

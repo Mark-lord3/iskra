@@ -22,8 +22,8 @@ export function IntentPills() {
             }}
             className={`rounded-full border px-4 py-2 text-sm transition ${
               selected
-                ? "border-ember-400 bg-ember-500/20 text-white"
-                : "border-white/10 bg-white/5 text-white/70"
+                ? "border-pink bg-softpink text-ink"
+                : "border-hairline bg-softpink/60 text-muted"
             }`}
           >
             {intent}

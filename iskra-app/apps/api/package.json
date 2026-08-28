@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsup src/index.ts --format esm --dts --out-dir dist",
+    "build": "tsup src/index.ts src/seed.ts --format esm --dts --out-dir dist",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test test/*.test.ts"
+    "test": "tsx --test test/*.test.ts",
+    "seed:staging:dating": "tsx src/seeds/seed-dating.ts",
+    "reset:staging:dating": "tsx src/seeds/seed-dating.ts --reset"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
@@ -16,11 +18,12 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.6.2",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.18.0",
     "multer": "^2.0.2",
-    "sharp": "^0.34.3",
+    "sharp": "^0.35.4",
     "socket.io": "^4.8.1",
     "stripe": "^18.5.0",
     "uuid": "^11.1.0",

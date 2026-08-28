@@ -2,9 +2,13 @@
 #
 # On the current VPS this file is NOT used: orvadora.com already runs a Caddy
 # that owns ports 80/443, and ISKRA is proxied by that one instead. See the
-# "iskra.orvadora.com" block appended to /root/home/orvadora/Caddyfile.
+# production blocks managed in /root/home/orvadora/Caddyfile.
 
-iskra.orvadora.com {
+www.project-iskra.com {
+	redir https://project-iskra.com{uri} permanent
+}
+
+project-iskra.com {
 	encode zstd gzip
 
 	@assets path /assets/*

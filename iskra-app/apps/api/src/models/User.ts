@@ -9,7 +9,8 @@ const userSchema = new Schema(
     dateOfBirth: { type: Date, required: true },
     gender: { type: String, enum: ["woman", "man"], required: true },
     lookingFor: [{ type: String }],
-    instagram: { type: String }
+    instagram: { type: String },
+    authVersion: { type: Number, default: 0, min: 0, select: false }
   },
   { timestamps: true }
 );

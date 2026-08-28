@@ -7,7 +7,8 @@
     "dev": "vite --port 5174",
     "build": "tsc -b && vite build",
     "lint": "tsc --noEmit",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.tsx"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.87.1",
