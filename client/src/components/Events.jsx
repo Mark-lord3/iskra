@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import Photo from './Photo.jsx';
-import { money, pad } from '../utils.js';
+import { dayNum, fmtTime, money } from '../utils.js';
 import {useI18n} from '../i18n.jsx';
 import {useReveal} from '../hooks/useReveal.js';
 
@@ -8,7 +8,7 @@ const FILTERS = [['all','events.all'],['techno','events.techno'],['house','event
 const BADGE = {hot:'events.hot',new:'events.new'};
 
 export default function Events({ events, onTickets }) {
-  const {t,formatDate}=useI18n();
+  const {t,formatDate,language}=useI18n();
   const [filter, setFilter] = useState('all');
   const visible = events.filter(e => filter === 'all' || e.tags.includes(filter));
   // Filtering unmounts cards. Observe the newly mounted cards each time so
@@ -40,7 +40,7 @@ export default function Events({ events, onTickets }) {
               <article key={e.id} className={'event rv' + (out ? ' soldout' : '')}>
                 <Photo src={e.image} seed={e.id} w={640} h={400} hover={!out} alt={e.title} className="ev-photo">
                   <div className="ev-day">
-                    {pad(d.getDate())}
+                    {dayNum(e.date)}
                     <small>{formatDate(d,{month:'short'}).toUpperCase()}</small>
                   </div>
                 </Photo>
@@ -48,10 +48,11 @@ export default function Events({ events, onTickets }) {
                 <div className="ev-main">
                   <h3>{e.title}</h3>
                   <p className="ev-support">{e.support}</p>
+                  {e.details&&<details className="event-details"><summary>{t('event.details')}</summary><p>{e.address}</p><p style={{whiteSpace:'pre-line'}}>{e.details[language]||e.details.en}</p><a href="/donate">{t('nav.donate')}</a> · <a href="https://dating.project-iskra.com">Dating Project Iskra</a></details>}
                   <div className="ev-meta">
                     {e.badges.map(b => <span key={b} className="tag tag-ember">{t(BADGE[b] || b)}</span>)}
                     <span className="tag">{formatDate(d,{weekday:'long'})}</span>
-                    <span className="tag">{pad(d.getHours())}:{pad(d.getMinutes())} {t('events.till')}</span>
+                    <span className="tag">{fmtTime(e.date)} {e.endsAt?'— 03:00':t('events.till')}</span>
                     <span className="tag">{e.room}</span>
                     {e.tags.map(t => <span key={t} className="tag">{t}</span>)}
                   </div>

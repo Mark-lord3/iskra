@@ -17,6 +17,11 @@ export const REDUCED = typeof matchMedia !== 'undefined'
 
 export const tiersFor = (e, t = key => key) => {
   const base = Number.isFinite(Number(e.from)) ? Number(e.from) : 8;
+  if(e.pricing?.mode==='category') return [
+    {n:t('event.women'),d:t('event.online'),p:e.pricing.general},
+    {n:t('event.men'),d:t('event.online'),p:e.pricing.early},
+    {n:t('checkout.booth'),d:t('event.vip'),p:e.pricing.vipPrice}
+  ];
   return [
     { n:t('checkout.general'), d:t('checkout.generalDesc'), p:tierPrice('general',base) },
     { n:t('checkout.early'), d:t('checkout.earlyDesc'), p:tierPrice('early',base) },
@@ -26,6 +31,6 @@ export const tiersFor = (e, t = key => key) => {
 
 export const nextEvent = events => {
   const now = Date.now();
-  return events.filter(e => new Date(e.date).getTime() > now && e.sold < 100)
+  return events.filter(e => new Date(e.endsAt||e.date).getTime() > now && e.sold < 100)
                .sort((a, b) => new Date(a.date) - new Date(b.date))[0] || events[0] || null;
 };

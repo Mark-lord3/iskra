@@ -1,17 +1,7 @@
 import {useI18n} from '../i18n.jsx';
 
-const PHOTOS = [
-  'project_iskra_event.jpg',
-  'project_iskra_event 1.jpg',
-  'project_iskra_event 2.jpg',
-  'project_iskra_event 3.jpg',
-  'project_iskra_event 4.jpg',
-  'project_iskra_event 5.jpg',
-  'project_iskra_event 6.jpg',
-  'project_iskra_event 7.jpg'
-];
-
-const srcFor = name => `/last-event/${encodeURIComponent(name)}`;
+const PHOTOS = [24,16,49,81,89,57,105].map(n => `avanesianpro-${String(n).padStart(3,'0')}.jpg`);
+const srcFor = name => `/events/2026-08-28/${name}`;
 
 export default function LastEvent() {
   const {t}=useI18n();
@@ -24,7 +14,7 @@ export default function LastEvent() {
             <h2 className="h-lg rv">{t('home.eventTitle')}</h2>
             <p className="lead rv">{t('home.eventLead')}</p>
           </div>
-          <a className="btn btn-ghost" href="/schedule">{t('common.viewSchedule')}</a>
+          <a className="btn btn-ghost" href="/gallery">{t('nav.gallery')}</a>
         </div>
 
         <div className="last-event-grid rv">
@@ -33,14 +23,14 @@ export default function LastEvent() {
           </figure>
           <div className="event-memory">
             <div className="memory-copy">
-              <span className="chip">{t('home.eventChip')}</span>
+              <span className="chip">{t('home.eventChip')} · 28.08.2026</span>
               <h3>{t('home.eventSignal')}</h3>
               <p>{t('home.eventCopy')}</p>
               <a className="btn btn-primary" href="/newsletter">{t('common.joinList')}</a>
             </div>
             <div className="memory-photos">
               {PHOTOS.slice(1,7).map((name, index) => (
-                <img key={name} src={srcFor(name)} alt={t('home.photoAlt',{number:index+2})} />
+                <img key={name} src={srcFor(name)} alt={t('home.photoAlt',{number:index+2})} loading="lazy" />
               ))}
             </div>
           </div>

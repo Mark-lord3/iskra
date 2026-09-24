@@ -8,6 +8,15 @@ const initial=(events=[])=>({eventSlug:events[0]?.slug||'',customerName:'',custo
   allowPromoStacking:false,internalNotes:'',expiresAt:'',maxRedemptions:1});
 const money=value=>new Intl.NumberFormat('en-CA',{style:'currency',currency:'CAD'}).format(Number(value)||0);
 const date=value=>value?new Date(value).toLocaleString():'Never';
+const copySafely=async value=>{
+  if(!navigator.clipboard?.writeText) return false;
+  try{
+    await navigator.clipboard.writeText(value);
+    return true;
+  }catch{
+    return false;
+  }
+};
 
 export default function CustomOrdersWorkspace({events=[]}){
   const toast=useToast();const [form,setForm]=useState(()=>initial(events));const [editing,setEditing]=useState(null);
@@ -19,10 +28,10 @@ export default function CustomOrdersWorkspace({events=[]}){
   const payload=()=>({...form,expiresAt:form.expiresAt||null,maxRedemptions:Number(form.maxRedemptions),
     admission:{...form.admission,qty:Number(form.admission.qty),unitPrice:Number(form.admission.unitPrice),discount:{...form.admission.discount,value:Number(form.admission.discount.value)}},
     vip:{...form.vip,qty:Number(form.vip.qty),unitPrice:Number(form.vip.unitPrice),discount:{...form.vip.discount,value:Number(form.vip.discount.value)},inclusions:String(form.vip.inclusions).split('\n').map(v=>v.trim()).filter(Boolean)}});
-  const save=async event=>{event.preventDefault();setBusy(true);try{const result=editing?await api.adminUpdateCustomOrder(editing,payload()):await api.adminCreateCustomOrder(payload());await navigator.clipboard?.writeText(result.code);toast(editing?'Custom order updated.':'Custom order created and code copied.','OK');setEditing(null);setForm(initial(events));await load();}catch(error){toast(error.message,'!');}finally{setBusy(false);}};
+  const save=async event=>{event.preventDefault();setBusy(true);try{const result=editing?await api.adminUpdateCustomOrder(editing,payload()):await api.adminCreateCustomOrder(payload());const copied=result.code?await copySafely(result.code):false;toast(editing?'Custom order updated.':copied?'Custom order created and code copied.':'Custom order created. Clipboard access was blocked, but the code was saved.','OK');setEditing(null);setForm(initial(events));await load();}catch(error){toast(error.message,'!');}finally{setBusy(false);}};
   const edit=row=>{setEditing(row.id);setForm({eventSlug:row.eventSlug,customerName:row.customerName||'',customerEmail:row.customerEmail||'',restrictEmail:row.restrictEmail,title:row.title,description:row.description||'',admission:{...row.admission,discount:{...row.admission.discount}},vip:{...row.vip,discount:{...row.vip.discount},inclusions:(row.vip.inclusions||[]).join('\n')},allowPromoStacking:row.allowPromoStacking,internalNotes:row.internalNotes||'',expiresAt:row.expiresAt?new Date(row.expiresAt).toISOString().slice(0,16):'',maxRedemptions:row.maxRedemptions});document.getElementById('custom-order-editor')?.scrollIntoView({behavior:'smooth'});};
-  const action=async(fn,message)=>{setBusy(true);try{const result=await fn();if(result?.code)await navigator.clipboard?.writeText(result.code);toast(message,'OK');await load(page.page);}catch(error){toast(error.message,'!');}finally{setBusy(false);}};
-  const copy=async value=>{await navigator.clipboard?.writeText(value);toast('Copied.','OK');};
+  const action=async(fn,message)=>{setBusy(true);try{const result=await fn();const copied=result?.code?await copySafely(result.code):false;toast(copied?message:`${message} Clipboard access was blocked.`,copied?'OK':'!');await load(page.page);}catch(error){toast(error.message,'!');}finally{setBusy(false);}};
+  const copy=async value=>{toast(await copySafely(value)?'Copied.':'Clipboard access was blocked.','OK');};
   return <div className="custom-orders-admin"><form id="custom-order-editor" className="admin-surface admin-form custom-order-editor" onSubmit={save}>
     <div className="admin-section-title"><div><span>Private checkout builder</span><h2>{editing?'Edit custom order':'Create custom order'}</h2></div>{editing&&<button type="button" onClick={()=>{setEditing(null);setForm(initial(events));}}>Cancel edit</button>}</div>
     <div className="admin-field-grid"><label><span>Event *</span><select required value={form.eventSlug} onChange={e=>setForm({...form,eventSlug:e.target.value})}><option value="">Choose event</option>{events.map(row=><option key={row.slug} value={row.slug}>{row.title}</option>)}</select></label><label><span>Customer name</span><input value={form.customerName} onChange={e=>setForm({...form,customerName:e.target.value})}/></label><label><span>Customer email</span><input type="email" value={form.customerEmail} onChange={e=>setForm({...form,customerEmail:e.target.value})}/></label><label className="admin-toggle"><input type="checkbox" checked={form.restrictEmail} onChange={e=>setForm({...form,restrictEmail:e.target.checked})}/><span><b>Restrict to email</b><small>Reject every other email.</small></span></label></div>

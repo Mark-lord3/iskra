@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import Logo from './Logo.jsx';
 import LanguageSwitcher from './LanguageSwitcher.jsx';
+import { datingUrl } from '../site.js';
 import {useI18n} from '../i18n.jsx';
 
 const LINKS = [
   ['/schedule','nav.schedule'],['/gallery','nav.gallery'],['/offers','nav.offers'],['/play','nav.play'],
-  ['/about','nav.about'],['/partners','nav.partners'],['/contact','nav.contact'],['/account','nav.account']
+  ['/about','nav.about'],['/partners','nav.partners'],['/contact','nav.contact'],['/donate','nav.donate'],[datingUrl(),'nav.dating'],['/account','nav.account']
 ];
 
 export default function Nav({ onTickets }) {
@@ -31,7 +32,7 @@ export default function Nav({ onTickets }) {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const onKey = e => { if (e.key === 'Escape') setOpen(false); };
-    const onResize = () => { if (window.innerWidth > 1100) setOpen(false); };
+    const onResize = () => { if (window.innerWidth > 1400) setOpen(false); };
     window.addEventListener('keydown', onKey);
     window.addEventListener('resize', onResize);
     return () => {
@@ -48,7 +49,7 @@ export default function Nav({ onTickets }) {
         <div className="wrap">
           <a href="/" className="logo"><Logo />ISKRA</a>
           <div className="navlinks">
-            {LINKS.map(([href, key]) => <a key={href} href={href}>{t(key)}</a>)}
+            {LINKS.map(([href, key]) => <a key={href} href={href} target={href.startsWith('http') ? '_blank' : undefined} rel={href.startsWith('http') ? 'noopener noreferrer' : undefined}>{t(key)}</a>)}
           </div>
           <LanguageSwitcher />
           <button className="btn btn-primary btn-sm" onClick={() => onTickets('next')}>{t('nav.getTickets')}</button>
@@ -61,7 +62,7 @@ export default function Nav({ onTickets }) {
         <div id="mobilemenu" className={'mobilemenu' + (open ? ' open' : '')}>
           <LanguageSwitcher className="language-switcher-mobile" />
           {LINKS.map(([href, key]) => (
-            <a key={href} href={href} onClick={() => setOpen(false)}>{t(key)}</a>
+            <a key={href} href={href} target={href.startsWith('http') ? '_blank' : undefined} rel={href.startsWith('http') ? 'noopener noreferrer' : undefined} onClick={() => setOpen(false)}>{t(key)}</a>
           ))}
           <button className="btn btn-primary" style={{ marginTop: 18 }}
                   onClick={() => { setOpen(false); onTickets('next'); }}>{t('nav.getTickets')}</button>

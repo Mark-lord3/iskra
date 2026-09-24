@@ -1,3 +1,4 @@
+import TicketCategory from '../components/TicketCategory.jsx';
 import { useEffect, useState } from 'react';
 import { api, savedTickets, saveTickets } from '../api.js';
 import Footer from '../components/Footer.jsx';
@@ -93,7 +94,7 @@ export default function TicketsPage({onTickets}){
                 <div className="wallet-ticket-copy">
                   <span className="eyebrow">{formatDate(ticket.eventDate,{weekday:'long',month:'long',day:'numeric'})}</span>
                   <h2>{ticket.eventTitle}</h2>
-                  <p>{ticket.room} · {ticket.tier}</p>
+                  <p>{ticket.room} · {ticket.tier}</p><TicketCategory ticket={ticket}/>
                   {ticket.admissionValid===false&&<p className="wallet-admission-warning">{t('tickets.tableNeedsEntry')}</p>}
                   <div><span>{ticket.buyerName}</span><b>{ticket.price ? money(ticket.price) : t('common.reserved')}</b></div>
                   {(ticket.status === 'redeemed' || new Date(ticket.eventDate) <= new Date()) && (

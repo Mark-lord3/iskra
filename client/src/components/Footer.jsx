@@ -1,9 +1,9 @@
 import Logo from './Logo.jsx';
-import { SITE } from '../site.js';
+import { SITE, datingUrl } from '../site.js';
 import {useI18n} from '../i18n.jsx';
 
 const NIGHTS = [['/schedule','nav.schedule'], ['/offers','nav.offers'], ['/play','footer.play']];
-const VISIT  = [['/about','footer.about'], ['/gallery','nav.gallery'], ['/tickets','nav.tickets'], ['/contact','nav.contact'], ['/newsletter','footer.list'], ['/terms','footer.terms']];
+const VISIT  = [['/about','footer.about'], ['/gallery','nav.gallery'], ['/tickets','nav.tickets'], ['/contact','nav.contact'], [datingUrl(),'nav.dating'], ['/newsletter','footer.list'], ['/terms','footer.terms'], ['/donate','nav.donate']];
 
 export default function Footer() {
   const {t}=useI18n();
@@ -16,7 +16,7 @@ export default function Footer() {
           <div>
             <a href="/" className="logo" style={{ marginBottom: 16 }}><Logo id="lg2" />ISKRA</a>
             <p className="lead" style={{ fontSize: 14, maxWidth: '30ch' }}>
-              {SITE.address}<br />{SITE.hours}<br />{t('footer.decent')}
+              {SITE.address}<br />{t('footer.hours')}<br />{t('footer.decent')}
             </p>
           </div>
 
@@ -28,7 +28,7 @@ export default function Footer() {
           <div>
             <h5>{t('footer.visit')}</h5>
             <ul>
-              {VISIT.map(([h,key]) => <li key={key}><a href={h}>{t(key)}</a></li>)}
+              {VISIT.map(([h,key]) => <li key={key}><a href={h} target={h.startsWith('http') ? '_blank' : undefined} rel={h.startsWith('http') ? 'noopener noreferrer' : undefined}>{t(key)}</a></li>)}
             </ul>
           </div>
 

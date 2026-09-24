@@ -24,7 +24,7 @@ export default function SchedulePage({ onTickets }) {
 
   useEffect(() => {
     api.events().then(data => {
-      const upcoming = data.filter(e => new Date(e.date) > Date.now() && !MOCK_SLUGS.has(e.slug || e.id));
+      const upcoming = data.filter(e => new Date(e.endsAt||e.date) > Date.now() && !MOCK_SLUGS.has(e.slug || e.id));
       setEvents(upcoming);
     }).catch(() => setEvents([]));
   }, []);

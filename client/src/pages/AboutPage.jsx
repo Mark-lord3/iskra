@@ -97,7 +97,7 @@ export default function AboutPage({ onTickets }) {
         </section>
 
         <section className="about-invite">
-          <img src={photo('project_iskra_event 18.jpg')} alt="Guests meeting outside a Project ISKRA event" loading="lazy" />
+          <img src="/events/2026-08-28/avanesianpro-024.jpg" alt="Guests dancing at a Project ISKRA event" loading="lazy" />
           <div className="about-invite-shade" />
           <div className="wrap about-invite-copy">
             <div className="eyebrow">{t('about.next')}</div>

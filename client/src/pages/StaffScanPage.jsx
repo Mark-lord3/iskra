@@ -1,3 +1,4 @@
+import TicketCategory from '../components/TicketCategory.jsx';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 
@@ -14,6 +15,7 @@ const OUTCOME = {
   expired:     { tone:'bad',   title:'EXPIRED',        mark:'✕' },
   wrong_event: { tone:'bad',   title:'WRONG NIGHT',    mark:'✕' },
   unpaid:      { tone:'bad',   title:'NOT PAID',       mark:'✕' },
+  reservation_only:{ tone:'warn', title:'VIP RESERVATION', mark:'!' },
   offline:     { tone:'warn',  title:'NO CONNECTION',  mark:'!' },
   error:       { tone:'warn',  title:'CHECK FAILED',   mark:'!' }
 };
@@ -263,6 +265,12 @@ export default function StaffScanPage() {
   }
 
   const info = result ? (OUTCOME[result.outcome] || OUTCOME.error) : null;
+  const access = result?.ticket?.access || null;
+  const vipLabel = access?.vipReservationOnly
+    ? 'Reservation only, no guest admitted'
+    : access?.vipIncluded
+      ? `${access.vipTables || 1} VIP ${access.vipTables === 1 ? 'table' : 'tables'} included`
+      : 'No VIP attached';
 
   return (
     <main className={'door' + (info ? ` door-flash tone-${info.tone}` : '')}>
@@ -355,9 +363,14 @@ export default function StaffScanPage() {
           {result.ticket && (
             <dl className="door-facts">
               <div><dt>Guest</dt><dd>{result.ticket.guest}</dd></div>
-              <div><dt>Ticket</dt><dd>{result.ticket.tier}</dd></div>
+              <div><dt>Ticket</dt><dd>{result.ticket.tier}<TicketCategory ticket={result.ticket}/></dd></div>
               <div><dt>Night</dt><dd>{result.ticket.eventTitle}</dd></div>
               <div><dt>Ref</dt><dd className="mono">{result.ticket.reference}</dd></div>
+              <div><dt>Admits</dt><dd>{access?.admits || 0} guest{access?.admits === 1 ? '' : 's'}</dd></div>
+              <div><dt>Order</dt><dd>{access ? `${access.admitted} / ${access.orderAdmissions} used` : '1 / 1 used'}</dd></div>
+              <div><dt>Remaining valid tickets</dt><dd>{access?.remaining || 0}</dd></div>
+              {access?.cancelled>0&&<div><dt>Cancelled tickets</dt><dd>{access.cancelled}</dd></div>}
+              <div><dt>VIP</dt><dd>{vipLabel}</dd></div>
             </dl>
           )}
 

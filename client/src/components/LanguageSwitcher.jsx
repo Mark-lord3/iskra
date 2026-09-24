@@ -1,6 +1,6 @@
 import {useI18n} from '../i18n.jsx';
 
-const OPTIONS=[['en','EN'],['uk','УКР'],['ru','РУС']];
+const OPTIONS=[['en','EN'],['fr','FR'],['uk','УКР'],['ru','РУС']];
 
 export default function LanguageSwitcher({className=''}){
   const {language,setLanguage,t}=useI18n();

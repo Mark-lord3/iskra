@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useI18n } from '../i18n.jsx';
 import { getSeo, SEO_IMAGE_URL, SEO_SITE_URL } from '../../../shared/seo.js';
 
-const SOCIAL_LOCALES = { en:'en_CA', uk:'uk_UA', ru:'ru_RU' };
+const SOCIAL_LOCALES = { en:'en_CA', fr:'fr_CA', uk:'uk_UA', ru:'ru_RU' };
 
 function upsertMeta(attribute, key, content) {
   let node = document.head.querySelector(`meta[${attribute}="${key}"]`);
@@ -45,9 +45,9 @@ function organizationSchema() {
 
 function eventSchema(event) {
   if (!event?.date) return null;
-  const start = new Date(event.date);
+  const start = new Date(event.startsAt || event.date);
   if (Number.isNaN(start.getTime())) return null;
-  const end = new Date(start.getTime() + 5 * 60 * 60 * 1000);
+  const end = event.endsAt ? new Date(event.endsAt) : new Date(start.getTime() + 5 * 60 * 60 * 1000);
   return {
     '@type':'Event',
     '@id':`${SEO_SITE_URL}/schedule#${event.slug || event.id}`,
@@ -83,7 +83,7 @@ function structuredData(seo, route, events) {
     name:'Project ISKRA',
     alternateName:'ISKRA Montreal',
     publisher:{ '@id':`${SEO_SITE_URL}/#organization` },
-    inLanguage:['en-CA','uk-UA','ru-RU']
+    inLanguage:['en-CA','fr-CA','uk-UA','ru-RU']
   }];
 
   if (seo.path !== '/' && seo.indexable) {

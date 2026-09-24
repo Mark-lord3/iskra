@@ -12,3 +12,18 @@ export const SITE = {
     'Ukrainian Wave Montréal': 'https://t.me/ukrwavemontreal'
   }
 };
+
+export function datingUrl() {
+  const explicit = String(import.meta.env.VITE_DATING_URL || '').trim();
+  if (explicit) return explicit;
+
+  const host = typeof window === 'undefined' ? '' : window.location.hostname.toLowerCase();
+  if (host === 'project-iskra.com' || host === 'www.project-iskra.com') {
+    return 'https://dating.project-iskra.com';
+  }
+  if (host === 'iskra.orvadora.com') {
+    return 'https://dating.orvadora.com';
+  }
+
+  return 'https://dating.orvadora.com';
+}

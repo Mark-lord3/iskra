@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ToastProvider } from './components/Toasts.jsx';
 import PromoBar from './components/PromoBar.jsx';
 import Nav from './components/Nav.jsx';
+import Events from './components/Events.jsx';
 import Hero from './components/Hero.jsx';
 import Marquee from './components/Marquee.jsx';
 import Stats from './components/Stats.jsx';
@@ -22,6 +23,7 @@ import TicketsPage from './pages/TicketsPage.jsx';
 import AccountPage from './pages/AccountPage.jsx';
 import PartnersPage from './pages/PartnersPage.jsx';
 import PokerPage from './pages/PokerPage.jsx';
+import DonatePage from './pages/DonatePage.jsx';
 import TermsPage from './pages/TermsPage.jsx';
 import ConsentCampaign from './components/ConsentCampaign.jsx';
 import Seo from './components/Seo.jsx';
@@ -58,7 +60,7 @@ export default function App() {
       const button = e.target.closest?.('button');
       const href = anchor?.getAttribute('href');
 
-      if(anchor && href?.startsWith('/')) {
+      if(anchor && href?.startsWith('/') && !anchor.hasAttribute('data-native-link') && !anchor.target && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
         e.preventDefault();
         window.history.pushState({}, '', href);
         setRoute(path());
@@ -97,7 +99,7 @@ export default function App() {
     // to use the code rather than below its minimum.
     setTicketQty(qty || null);
   }, []);
-  const onSale = events.filter(e => e.sold < 100 && new Date(e.date) > Date.now()).length;
+  const onSale = events.filter(e => e.sold < 100 && new Date(e.endsAt||e.date) > Date.now()).length;
   const modalEvent = ticketFor === 'next' ? nextEvent(events) : events.find(e => e.id === ticketFor);
 
   const pokerRoute = route === '/play/poker' || route.startsWith('/play/poker/')
@@ -114,6 +116,7 @@ export default function App() {
     '/tickets': <TicketsPage onTickets={openTickets} />,
     '/account': <AccountPage />,
     '/partners': <PartnersPage onTickets={openTickets} />,
+    '/donate': <DonatePage onTickets={openTickets} />,
     '/terms': <TermsPage onTickets={openTickets} />,
     '/staff/scan': <StaffScanPage />,
     // The old admin-key scanner URL keeps working, pointing at the staff route.
@@ -141,7 +144,8 @@ export default function App() {
       <ConsentCampaign />
       <PromoBar />
       <Nav onTickets={openTickets} />
-      <Hero event={null} count={onSale} onTickets={openTickets} />
+      <Hero event={events.find(e=>new Date(e.endsAt||e.date)>new Date())||null} count={onSale} onTickets={openTickets} />
+      <Events events={events.filter(e=>new Date(e.endsAt||e.date)>new Date())} onTickets={openTickets} />
       <Marquee />
       <Stats />
 

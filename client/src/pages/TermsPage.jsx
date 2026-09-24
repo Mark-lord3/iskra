@@ -1,3 +1,5 @@
+import {useI18n} from '../i18n.jsx';
+import {termsFr} from '../terms-fr.js';
 import Footer from '../components/Footer.jsx';
 import Nav from '../components/Nav.jsx';
 import PromoBar from '../components/PromoBar.jsx';
@@ -20,19 +22,22 @@ const sections = [
 ];
 
 export default function TermsPage({ onTickets }) {
+  const {language}=useI18n();
+  const french=language==='fr';
+  const content=french?[...termsFr,['13. Contact',`Pour toute question, demande d’accessibilité, avis d’annulation ou problème de billet, écrivez à ${SITE.email}. Indiquez le nom de l’acheteur, l’événement et la référence du billet, sans jamais envoyer les coordonnées complètes d’une carte.`]]:sections;
   return <>
     <PromoBar />
     <Nav onTickets={onTickets} />
     <main className="legal-page">
       <header className="legal-hero"><div className="wrap">
-        <p className="eyebrow">Legal / Event admission</p>
-        <h1>EVENT TERMS<br />&amp; CONDITIONS</h1>
-        <p>Plain-language conditions for official Project ISKRA tickets and events in Québec.</p>
-        <span>Effective August 26, 2026 · Version 1.0</span>
+        <p className="eyebrow">{french?"Conditions / Entrée aux événements":"Legal / Event admission"}</p>
+        <h1>{french?'CONDITIONS DES ÉVÉNEMENTS':<>EVENT TERMS<br />&amp; CONDITIONS</>}</h1>
+        <p>{french?"Conditions des billets et événements officiels Project ISKRA au Québec.":"Plain-language conditions for official Project ISKRA tickets and events in Qu\u00e9bec."}</p>
+        <span>{french?"En vigueur le 26 août 2026 · Version 1.0":"Effective August 26, 2026 \u00b7 Version 1.0"}</span>
       </div></header>
       <div className="wrap legal-layout">
-        <aside><b>Before you enter</b><p>18+ photo ID may be required. Keep your QR private and contact us if it does not arrive.</p><a href={`mailto:${SITE.email}`}>{SITE.email}</a><a href="https://www.opc.gouv.qc.ca/en/consumer/topic/purchase/online-purchase/cancelling/condition/" target="_blank" rel="noopener noreferrer">Quebec cancellation rights ↗</a><button type="button" onClick={() => window.print()}>Print or save PDF</button></aside>
-        <article className="legal-copy"><p className="legal-intro">These terms are intended to make the purchase and door rules clear before you pay. Your mandatory rights under Quebec law always remain in force.</p>{sections.map(([title,copy])=><section key={title}><h2>{title}</h2><p>{copy}</p></section>)}</article>
+        <aside><b>{french?"Avant votre arrivée":"Before you enter"}</b><p>{french?"Une pièce d’identité avec photo peut être exigée pour confirmer vos 18 ans. Gardez votre QR privé et contactez-nous s’il n’arrive pas.":"18+ photo ID may be required. Keep your QR private and contact us if it does not arrive."}</p><a href={`mailto:${SITE.email}`}>{SITE.email}</a><a href="https://www.opc.gouv.qc.ca/en/consumer/topic/purchase/online-purchase/cancelling/condition/" target="_blank" rel="noopener noreferrer">{french?"Droits d’annulation au Québec ↗":"Quebec cancellation rights \u2197"}</a><button type="button" onClick={() => window.print()}>{french?"Imprimer ou enregistrer en PDF":"Print or save PDF"}</button></aside>
+        <article className="legal-copy"><p className="legal-intro">{french?"Ces conditions précisent les règles d’achat et d’entrée avant le paiement. Vos droits impératifs prévus par le droit québécois demeurent toujours applicables.":"These terms are intended to make the purchase and door rules clear before you pay. Your mandatory rights under Quebec law always remain in force."}</p>{content.map(([title,copy])=><section key={title}><h2>{title}</h2><p>{copy}</p></section>)}</article>
       </div>
     </main>
     <Footer />

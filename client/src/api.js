@@ -63,6 +63,8 @@ function request(path,options={}){
 }
 
 export const api = {
+  donate: body => request('/donations/checkout',{method:'POST',body}),
+  donationStatus: id => request(`/donations/status?session_id=${encodeURIComponent(id)}`),
   events:      ()               => request('/events'),
   banners:     ()               => request('/admin/banners'),
   signup:      (body)           => request('/players',  { method:'POST', body }),

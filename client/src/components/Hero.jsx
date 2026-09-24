@@ -5,7 +5,7 @@ import {useI18n} from '../i18n.jsx';
 
 export default function Hero({ event, count, onTickets }) {
   const {t,formatDate}=useI18n();
-  const cd = useCountdown(event?.date);
+  const cd = useCountdown(event?.startsAt||event?.date);
   const d = event ? new Date(event.date) : null;
   const soldFast = Boolean(event && event.sold > 60 && event.sold < 100);
   const goSignup = () => {
@@ -24,21 +24,21 @@ export default function Hero({ event, count, onTickets }) {
 
       <div className="wrap hero-body">
         <div className="hero-top">
-          <span className="chip"><i className="dot" /> {t('home.latest')}</span>
-          <span className="chip">{t('home.venue')}</span>
-          <span className="chip">{t('home.doors')}</span>
+          <span className="chip"><i className="dot" /> {event?formatDate(event.date,{day:'numeric',month:'long'}):t('home.latest')}</span>
+          <span className="chip">{event?event.room:t('home.venue')}</span>
+          <span className="chip">{event?'22:00 — 03:00':t('home.doors')}</span>
         </div>
         <div className="hero-grid">
           <div>
-            <h1 className="h-xl">
-              <span className="line"><i>{t('home.title1')}</i></span>
-              <span className="line"><i className="grad-text">{t('home.title2')}</i></span>
+            <h1 className={event?"h-xl hero-event-title":"h-xl"}>
+              <span className="line"><i>{event?event.title.split(' + ')[0]:t('home.title1')}</i></span>
+              <span className="line"><i className="grad-text">{event?`+ ${event.title.split(' + ').slice(1).join(' + ')}`:t('home.title2')}</i></span>
             </h1>
             <p className="lead">
-              {t('home.lead')}
+              {event?event.support:t('home.lead')}
             </p>
             <div className="hero-cta">
-              <button className="btn btn-primary" onClick={goSignup}>{t('common.joinList')} →</button>
+              <button className="btn btn-primary" onClick={goSignup}>{t(event?'nav.getTickets':'common.joinList')} →</button>
               <a className="btn btn-ghost" href="/schedule">{t('common.viewSchedule')}</a>
             </div>
           </div>

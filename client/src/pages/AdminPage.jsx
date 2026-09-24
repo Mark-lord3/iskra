@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
+import { dayNum, fmtDate } from '../utils.js';
 import Logo from '../components/Logo.jsx';
 import { useToast } from '../components/Toasts.jsx';
 import PokerAdminWorkspace from '../components/PokerAdminWorkspace.jsx';
@@ -80,7 +81,9 @@ export default function AdminPage(){
     setBusy(true);
     try{
       const result=await work();
-      toast(`${result.sent||0} sent · ${result.failed||0} failed · ${result.skipped||0} skipped`,'OK');
+      const summary=`${result.sent||0} sent · ${result.failed||0} failed · ${result.skipped||0} skipped`;
+      const firstIssue=(result.results||[]).find(row=>!row.sent && row.error)?.error;
+      toast(firstIssue?`${summary} · ${firstIssue}`:summary,(result.failed||result.skipped)?'!':'OK');
       await load();
       return true;
     }catch(error){toast(error.message,'!');return false;}
@@ -170,7 +173,7 @@ function EventsWorkspace({data,form,setForm,save,edit,remove}){
     <section className="admin-surface">
       <div className="admin-section-title"><div><span>All schedule items</span><h2>{data.events.length} events</h2></div></div>
       <div className="admin-record-list">{data.events.map(event=><article key={event.slug}>
-        <div className="admin-record-date"><b>{new Date(event.date).getDate()}</b><span>{new Date(event.date).toLocaleDateString('en',{month:'short'})}</span></div>
+        <div className="admin-record-date"><b>{Number(dayNum(event.date))}</b><span>{fmtDate(event.date,{month:'short'})}</span></div>
         <div><h3>{event.title}</h3><p>{dateTime(event.date)} · {event.room}</p><span>{event.capacity?`${event.capacity} capacity`:'No capacity limit'} · from {money(event.from)} · Spark min {event.arcadeMinParticipants||30}</span></div>
         <Status>{eventState(event)}</Status>
         <div className="admin-event-actions"><button className="admin-text-action" onClick={()=>edit(event)}>Edit</button><button className="admin-danger-link" onClick={()=>remove(event.slug)}>Remove</button></div>

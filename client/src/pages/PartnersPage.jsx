@@ -42,17 +42,16 @@ export default function PartnersPage({ onTickets }) {
       <section className="partners-v2-hero">
         <div className="wrap partners-v2-hero-grid">
           <div className="partners-v2-intro">
-            <p>PROJECT ISKRA / PARTNERS</p>
+            <p>{t('partners.kicker')}</p>
             <h1>{t('partners.title')}</h1>
             <span>{t('partners.lead')}</span>
           </div>
-          <div className="partners-v2-collage" aria-label="Project ISKRA partner identities">
+          <div className="partners-v2-collage" aria-label={t('partners.identities')}>
             <figure className="partners-v2-collage-main"><img src="/partners/orvadora-lockup.png" alt="Orvadora digital solutions" /></figure>
-            <figure className="partners-v2-collage-top"><img src="/partners/muzique-enhanced.jpg" alt="Muzique Montréal" /></figure>
             <figure className="partners-v2-collage-bottom"><img src="/partners/ukrainian-montreal.jpg" alt={t('partners.communityTitle')} /></figure>
           </div>
         </div>
-        <div className="partners-v2-strip" aria-hidden="true"><span>TECHNOLOGY / NIGHTLIFE / COMMUNITY / MONTRÉAL / TECHNOLOGY / NIGHTLIFE / COMMUNITY / MONTRÉAL /</span></div>
+        <div className="partners-v2-strip" aria-hidden="true"><span>{t('partners.ticker')} / {t('partners.ticker')} /</span></div>
       </section>
 
       <section className="partners-v2-orvadora">
@@ -131,18 +130,6 @@ export default function PartnersPage({ onTickets }) {
         </div>
       </section>
 
-      <section className="partners-v2-muzique">
-        <div className="wrap partners-v2-muzique-grid">
-          <figure><img src="/partners/muzique-enhanced.jpg" alt={t('partners.muziqueAlt')} loading="lazy" /></figure>
-          <div>
-            <p>{t('partners.venueRole')}</p>
-            <h2>MUZIQUE<br />MONTRÉAL</h2>
-            <span>{t('partners.venueCopy')}</span>
-            <a className="partners-v2-dark-link" href="https://www.instagram.com/muziquemontreal/" target="_blank" rel="noopener noreferrer">Instagram <b>↗</b></a>
-          </div>
-        </div>
-      </section>
-
       <section className="partners-v2-community">
         <div className="wrap partners-v2-community-grid">
           <figure><img src="/partners/ukrainian-montreal.jpg" alt={t('partners.communityTitle')} loading="lazy" /></figure>
@@ -150,7 +137,7 @@ export default function PartnersPage({ onTickets }) {
             <p>{t('partners.communityRole')}</p>
             <h2>{t('partners.communityTitle')}</h2>
             <span>{t('partners.communityCopy')}</span>
-            <a href="https://t.me/montrealukrainians" target="_blank" rel="noopener noreferrer">Open Telegram <b>↗</b></a>
+            <a href="https://t.me/montrealukrainians" target="_blank" rel="noopener noreferrer">{t('partners.openTelegram')} <b>↗</b></a>
           </div>
         </div>
       </section>

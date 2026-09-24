@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import TicketCategory from './TicketCategory.jsx';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, savedPlayer, saveTickets } from '../api.js';
 import { useToast } from './Toasts.jsx';
 import { money, tiersFor } from '../utils.js';
@@ -8,12 +9,16 @@ import {useI18n} from '../i18n.jsx';
 export default function TicketModal({ event, presetCode, presetQty, onClose }) {
   const {t,formatDate,language}=useI18n();
   const toast = useToast();
-  const availability = tierAvailability(event.date);
-  const [tierIdx, setTierIdx] = useState(() => availability.early ? 1 : 0);
+  const availability = tierAvailability(event.date,new Date(),event.pricing);
+  const [tierIdx, setTierIdx] = useState(() => !event.pricing && availability.early ? 1 : 0);
+  const seats=event.pricing?.vipSeats||VIP_TABLE_SEATS;
+  const [vipGeneralQty,setVipGeneralQty]=useState(null);
   const [qty, setQty] = useState(() => presetQty ? clampQty(presetQty) : 1);
   const [input, setInput] = useState(presetCode || '');
   const [code, setCode] = useState(null);
   const [msg, setMsg] = useState('');
+  const checkoutInFlight=useRef(false);
+  const [confirmedSelection,setConfirmedSelection]=useState('');
   const [busy, setBusy] = useState(false);
   const [buyerName, setBuyerName] = useState('');
   const [buyerEmail, setBuyerEmail] = useState('');
@@ -25,13 +30,25 @@ export default function TicketModal({ event, presetCode, presetQty, onClose }) {
   const [customOrder,setCustomOrder]=useState(null);
   const [customMessage,setCustomMessage]=useState('');
 
+  const womenQty=vipGeneralQty==null?(tierIdx===0?qty:0):Math.min(qty,vipGeneralQty);
+  const selectionKey=JSON.stringify([tierIdx,qty,isNaN(womenQty)?0:womenQty,includeVip]);
+  const needsCategoryConfirmation=event.pricing?.mode==='category'&&!customOrder;
+  const categoryConfirmed=!needsCategoryConfirmation||confirmedSelection===selectionKey;
   const tiers = useMemo(() => tiersFor(event, t), [event, t]);
   const isVipTable = includeVip;
+  const mixedAdmission=event.pricing?.mode==='category'&&!customOrder;
+  const changeCategory=(category,delta)=>{
+    const current=category==='women'?womenQty:qty-womenQty;
+    if(current+delta<0||qty+delta>(includeVip?seats:MAX_QTY))return;
+    setVipGeneralQty(womenQty+(category==='women'?delta:0));
+    setQty(qty+delta);
+  };
   const controlsLocked=Boolean(customOrder);
 
   const loadVipAvailability=()=>api.vipAvailability(event.id).then(setVipInfo).catch(error=>{
     setVipInfo({capacity:4,sold:0,held:0,remaining:0,nextSlot:null,nextDiscountPercent:0,error:error.message});
   });
+
   useEffect(()=>{loadVipAvailability();},[event.id]); // eslint-disable-line
 
   const validate = async (value, silent) => {
@@ -57,7 +74,7 @@ export default function TicketModal({ event, presetCode, presetQty, onClose }) {
 
   useEffect(() => {
     if (!isVipTable||customOrder?.allowPromoStacking) return;
-    setQty(current=>Math.min(VIP_TABLE_SEATS,Math.max(1,current)));
+    setQty(current=>Math.min(seats,Math.max(event.pricing?0:1,current)));
     setCode(null);
     setMsg('');
   }, [isVipTable,customOrder?.allowPromoStacking]);
@@ -78,26 +95,30 @@ export default function TicketModal({ event, presetCode, presetQty, onClose }) {
   /* Priced by shared/pricing.js — the same module the server charges with, so
      the figure here is the figure taken. */
   const priced = useMemo(
-    () => isVipTable
-      ? vipTableQuote({base:event.from,admissionTierKey:['general','early'][tierIdx],admissionQty:qty,tableSlot:vipInfo?.nextSlot||1})
-      : priceQuote({ base:event.from, tierKey:['general','early'][tierIdx], qty, promo:code }),
-    [event.from, tierIdx, qty, code, isVipTable, vipInfo?.nextSlot]);
+    () => { const result=isVipTable
+      ? vipTableQuote({pricing:event.pricing,generalQty:womenQty,base:event.from,admissionTierKey:['general','early'][tierIdx],admissionQty:qty,tableSlot:vipInfo?.nextSlot||1})
+      : priceQuote({ pricing:event.pricing,generalQty:womenQty,base:event.from, tierKey:['general','early'][tierIdx], qty, promo:code });
+      return qty===0?{...result,total:isVipTable?result.tablePrice:0,subtotal:isVipTable?result.tablePrice:0,admissionSubtotal:0,admissionDiscount:0,saved:0,equivalentTickets:0,lines:[],promo:null}:result;
+    },
+    [event.from,event.pricing,womenQty, tierIdx, qty, code, isVipTable, vipInfo?.nextSlot]);
   const displayedPricing=customOrder?.pricing||priced;
   const { total, saved, equivalentTickets=0 } = displayedPricing;
   const notes = displayedPricing.lines.map(l => l.label).filter(Boolean);
   const ticketEquivalent = Number.isInteger(equivalentTickets)
     ? equivalentTickets : equivalentTickets.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
   // A code that needs more tickets says so instead of quietly not applying.
-  const shortfall = code && !priced.promo.applied && priced.promo.reason === 'MIN_QTY'
+  const shortfall = code && !priced.promo?.applied && priced.promo?.reason === 'MIN_QTY'
     ? priced.promo : null;
 
   const checkout = async () => {
+    if(qty<1||!categoryConfirmed||checkoutInFlight.current)return;
+    checkoutInFlight.current=true;
     setBusy(true);
     try {
       const p = savedPlayer();
       const result = await api.checkoutTickets({
         eventSlug:event.id,tierKey:['general','early'][tierIdx],admissionTierKey:['general','early'][tierIdx],
-        includeVip:isVipTable,qty,
+        includeVip:isVipTable,qty,vipGeneralQty:womenQty,
         code:code?.code || null,playerId:p?.id || null,locale:language,
         buyerName,buyerEmail,vipExpectedDiscount:isVipTable&&!customOrder?vipInfo?.nextDiscountPercent:0,
         customOrderCode:customOrder?customInput.trim().toUpperCase():null
@@ -114,7 +135,7 @@ export default function TicketModal({ event, presetCode, presetQty, onClose }) {
       if(e.code==='VIP_AVAILABILITY_CHANGED'||e.code==='VIP_SOLD_OUT')loadVipAvailability();
       toast(e.message, '!');
     }
-    finally { setBusy(false); }
+    finally { checkoutInFlight.current=false;setBusy(false); }
   };
 
   useEffect(() => {
@@ -134,7 +155,7 @@ export default function TicketModal({ event, presetCode, presetQty, onClose }) {
           <span className="chip"><span className="dot" /> {t('checkout.ready')}</span>
           <h3>{issued.length === 1 ? t('checkout.oneReady') : t('checkout.manyReady',{count:issued.length})}</h3>
           <img src={first.qrDataUrl} alt={t('tickets.qrAlt',{reference:first.reference})} />
-          <code>{first.reference}</code>
+          <code>{first.reference}</code><TicketCategory ticket={first}/>
           <p>{t(emailSent ? 'checkout.saved' : 'checkout.emailDelayed')}</p>
           <a className="btn btn-primary" href="/tickets" onClick={onClose}>{t('checkout.open')}</a>
         </div>
@@ -153,7 +174,14 @@ export default function TicketModal({ event, presetCode, presetQty, onClose }) {
         </div>
 
         <p className="checkout-section-label">{t('checkout.chooseAdmission')}</p>
-        {tiers.slice(0,2).map((tierOption, i) => {
+        {mixedAdmission&&<div className="admission-counters">
+          {['women','men'].map((category,index)=><div className="qty admission-counter" key={category} data-category={category}>
+            <span><b className={`ticket-category ticket-category--${category}`}>{t(`event.${category}`)}</b><small>{money(tiers[index].p)}</small></span>
+            <div className="qty-ctl"><button type="button" disabled={(index===0?womenQty:qty-womenQty)===0||busy} aria-label={`${t('common.decrease')} ${t(`event.${category}`)}`} onClick={()=>changeCategory(category,-1)}>−</button><b>{index===0?womenQty:qty-womenQty}</b><button type="button" disabled={qty>=(isVipTable?seats:MAX_QTY)||busy} aria-label={`${t('common.increase')} ${t(`event.${category}`)}`} onClick={()=>changeCategory(category,1)}>+</button></div>
+          </div>)}
+          <p className="admission-total" aria-live="polite">{t('checkout.guestTotal',{count:qty})} · {t('checkout.guestLimit',{count:isVipTable?seats:MAX_QTY})}</p>
+        </div>}
+        {!mixedAdmission&&tiers.slice(0,2).map((tierOption, i) => {
           const tierKey = ['general','early'][i];
           const available = availability[tierKey];
           const description = !available && tierKey === 'general' ? t('checkout.earlyClosed')
@@ -170,37 +198,29 @@ export default function TicketModal({ event, presetCode, presetQty, onClose }) {
         })}
 
         <p className="checkout-section-label">{t('checkout.addOns')}</p>
-        <button type="button"
-                className={'tier tier-addon' + (includeVip ? ' on' : '')}
-                disabled={controlsLocked||!vipInfo || !vipInfo.remaining}
-                aria-pressed={includeVip}
-                onClick={() => setIncludeVip(value => !value)}>
-          <span>
-            <b>{tiers[2].n}</b>
-            <small>{!vipInfo ? t('checkout.vipChecking')
-              : !vipInfo.remaining ? t('checkout.vipSoldOut')
-              : t('checkout.vipDescription',{discount:vipInfo.nextDiscountPercent})}</small>
-          </span>
-          <span className="p">{includeVip ? t('checkout.added') : `+ ${money(tiers[2].p)}`}</span>
+        <button type="button" className={'tier tier-addon'+(includeVip?' on':'')}
+          disabled={busy||controlsLocked||!vipInfo||!vipInfo.remaining||(mixedAdmission&&!includeVip&&qty>seats)}
+          aria-pressed={includeVip} onClick={()=>setIncludeVip(value=>!value)}>
+          <span><b>{tiers[2].n}</b><small>{mixedAdmission&&!includeVip&&qty>seats?t('checkout.vipLimit',{count:seats}):!vipInfo?t('checkout.vipChecking'):!vipInfo.remaining?t('checkout.vipSoldOut'):t(event.pricing?'event.vip':'checkout.vipDescription',{discount:vipInfo.nextDiscountPercent})}</small></span>
+          <span className="p">{includeVip?t('checkout.added'):`+ ${money(tiers[2].p)}`}</span>
         </button>
-
-        {isVipTable&&vipInfo?.remaining>0&&<div className="vip-checkout-breakdown" role="status">
+        {isVipTable&&!customOrder&&vipInfo?.remaining>0&&<div className="vip-checkout-breakdown" role="status">
           <b>{t('checkout.vipTableNumber',{slot:vipInfo.nextSlot})}</b>
-          <span>{t('checkout.vipSeparateEntry',{discount:vipInfo.nextDiscountPercent})}</span>
+          <span>{t(event.pricing?'event.five':'checkout.vipSeparateEntry',{discount:vipInfo.nextDiscountPercent})}</span>
           <small>{t('checkout.vipRemaining',{count:vipInfo.remaining})}</small>
         </div>}
 
-        <div className="qty">
+        {!mixedAdmission&&<div className="qty">
           <div>
             <b style={{ fontSize: 14 }}>{t('checkout.quantity')}</b><br />
-            <small style={{ color:'var(--dim)', fontSize:12 }}>{t(isVipTable?'checkout.vipAdmissionsHint':'checkout.quantityHint')}</small>
+            <small style={{ color:'var(--dim)', fontSize:12 }}>{t(isVipTable?(event.pricing?'event.five':'checkout.vipAdmissionsHint'):'checkout.quantityHint')}</small>
           </div>
           <div className="qty-ctl">
             <button disabled={controlsLocked} onClick={() => setQty(q => Math.max(1, q - 1))} aria-label={t('common.decrease')}>−</button>
             <b>{qty}</b>
-            <button disabled={controlsLocked} onClick={() => setQty(q => Math.min(isVipTable?VIP_TABLE_SEATS:MAX_QTY, q + 1))} aria-label={t('common.increase')}>+</button>
+            <button disabled={controlsLocked} onClick={() => setQty(q => Math.min(isVipTable?seats:MAX_QTY, q + 1))} aria-label={t('common.increase')}>+</button>
           </div>
-        </div>
+        </div>}
 
         <div className="promoline">
           <input value={input} placeholder={isVipTable&&!customOrder?.allowPromoStacking ? t('checkout.vipNoPromos') : t('checkout.code')} aria-label={t('checkout.code')}
@@ -244,10 +264,12 @@ export default function TicketModal({ event, presetCode, presetQty, onClose }) {
         </div>
 
         <div className="checkout-cart" aria-label={t('checkout.orderSummary')}>
+          {mixedAdmission?['women','men'].map((category,index)=>{const count=index===0?womenQty:qty-womenQty;return <div key={category}><span>{t(`event.${category}`)}: {count} × {money(tiers[index].p)}</span><b>{money(count*tiers[index].p)}</b></div>}):<>
           <div>
-            <span>{customOrder?t('checkout.customAdmissions',{count:customOrder.admission.qty}):t('checkout.cartTickets',{count:qty,tier:tiers[tierIdx].n})}</span>
+            <span>{customOrder?t('checkout.customAdmissions',{count:customOrder.admission.qty}):(isVipTable&&event.pricing?`${womenQty} ${t('event.women')} + ${qty-womenQty} ${t('event.men')}`:t('checkout.cartTickets',{count:qty,tier:tiers[tierIdx].n}))}</span>
             <b>{money(customOrder?customOrder.pricing.lines.find(line=>line.type==='admission')?.total||0:isVipTable ? priced.admissionSubtotal : priced.subtotal)}</b>
           </div>
+          </>}
           {isVipTable&&<div>
             <span>{customOrder?t('checkout.customVip',{count:customOrder.vip.qty}):t('checkout.cartVip',{slot:vipInfo?.nextSlot||1})}</span>
             <b>{money(customOrder?customOrder.pricing.lines.find(line=>line.type==='vip')?.total||0:priced.tablePrice)}</b>
@@ -268,7 +290,9 @@ export default function TicketModal({ event, presetCode, presetQty, onClose }) {
           <b>{total <= 0 ? 'FREE' : money(total)}</b>
         </div>
 
-        <button className="btn btn-primary" style={{ width:'100%' }} disabled={busy || Boolean(shortfall) || (isVipTable&&!customOrder&&!vipInfo?.remaining) || buyerName.trim().length < 2 || !buyerEmail.includes('@')} onClick={checkout}>
+        {needsCategoryConfirmation&&<p className="checkout-door-policy">{t('checkout.doorPolicy')}</p>}
+        {needsCategoryConfirmation&&<label className="category-purchase-confirm"><input type="checkbox" checked={categoryConfirmed} onChange={e=>setConfirmedSelection(e.target.checked?selectionKey:'')}/><span>{t('checkout.confirmCategories')}</span></label>}
+        <button className="btn btn-primary" style={{ width:'100%' }} disabled={busy || qty<1 || !categoryConfirmed || Boolean(shortfall) || (isVipTable&&!customOrder&&!vipInfo?.remaining) || buyerName.trim().length < 2 || !buyerEmail.includes('@')} onClick={checkout}>
           {busy ? t(total > 0 ? 'checkout.redirecting' : 'checkout.issuing') : t(total > 0 ? 'checkout.pay' : 'checkout.reserve')}
         </button>
         <p className="mono" style={{ fontSize:10, color:'var(--dim)', marginTop:14, textAlign:'center', letterSpacing:'.1em' }}>

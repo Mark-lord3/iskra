@@ -3602,3 +3602,28 @@ body:has(.admin-app)::after,body:has(.admin-login)::after{content:none}
 .admin-reply-thread p{margin:0;font-size:13px;line-height:1.6;color:var(--muted);white-space:pre-wrap}
 .admin-reply-thread .is-failed{border-left:2px solid #ff6b6b;margin-left:-16px;padding-left:14px}
 .admin-reply-thread em{font-style:normal;font-size:11px;color:#ff8d8d}
+
+/* Support and the latest photo archive inherit the site's existing type and buttons. */
+.gallery-archive-title{margin-top:80px;margin-bottom:32px}
+.donate-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:clamp(32px,6vw,96px);align-items:start}
+.donate-story .h-xl{font-size:clamp(48px,6vw,88px);line-height:1.03;max-width:12ch}
+.donate-story figure{margin:32px 0 0}.donate-story img{display:block;width:100%;height:auto;aspect-ratio:3/2;object-fit:cover}.donate-story figcaption{margin-top:12px;font-size:12px;color:var(--muted)}
+.donate-form-panel{padding:32px;border:1px solid var(--line,#333);margin-top:24px}.donate-form-panel .h-lg{font-size:clamp(28px,3vw,42px)}.donate-form-panel p{margin:16px 0;line-height:1.6}.donate-presets{display:flex;flex-wrap:wrap;gap:8px;margin:28px 0}.donate-presets button{flex:1;padding:12px}.donate-presets [aria-pressed=true]{border-color:var(--accent,#ff5a1f);color:var(--accent,#ff5a1f)}.donate-amount{display:flex;align-items:center;gap:16px;margin-top:8px}.donate-amount input{min-width:0;width:100%;font-size:28px;padding:14px}.donate-form-panel form>.btn{width:100%;white-space:normal}.donate-note{color:var(--muted);font-size:13px}.donate-error{color:#ff9d87}.donate-form-panel>a{display:inline-block;margin-top:24px;text-decoration:underline}
+@media(max-width:800px){.donate-layout{grid-template-columns:1fr}.donate-form-panel{margin-top:0;padding:24px}.gallery-archive-title{margin-top:48px}}
+.nav .wrap{max-width:1600px;gap:20px}.navlinks{gap:16px}.navlinks a{font-size:12px;letter-spacing:.04em;white-space:nowrap}.nav .wrap>.btn-primary{flex-shrink:0}.mobilemenu{max-height:calc(100dvh - 72px);overflow-y:auto}
+.donate-amount input{background:var(--ink);color:var(--text);border:1px solid var(--line);border-radius:2px}.donate-amount input:focus-visible{outline:2px solid var(--spark);outline-offset:3px}
+@media(min-width:1101px) and (max-width:1400px){.navlinks{display:none}.burger{display:flex}.nav .wrap>.btn-primary{display:none}.mobilemenu .language-switcher-mobile{display:flex}}
+
+html[lang=fr] .partners-v2-intro h1{line-height:1.02}
+
+.event-details{margin:16px 0;max-width:65ch;font-size:14px;line-height:1.7}.event-details summary{cursor:pointer;color:var(--acid);font-weight:600}.event-details p{margin:14px 0;color:var(--text)}.event-details a{text-decoration:underline}.qty select{color:var(--text);background:var(--panel,#222);padding:8px;border:1px solid var(--line,#555);border-radius:4px}
+
+.ticket-category-block{margin:12px 0;display:block}.ticket-category{display:inline-block;padding:8px 16px;border-radius:6px;font-size:15px;font-weight:800;line-height:1.3;letter-spacing:.04em}.ticket-category--women{background:#ff91c8;color:#24101c;border:1px solid #ff91c8}.ticket-category--men{background:#000;color:#fff;border:1px solid #858585}.ticket-category-block .ticket-category-counts{margin:8px 0 0;font-size:13px;line-height:1.5;color:#e0d9e4;white-space:normal}
+
+.category-purchase-confirm{display:flex;gap:12px;align-items:flex-start;margin:18px 0;font-size:14px;line-height:1.5}.category-purchase-confirm input{width:20px;height:20px;flex-shrink:0;accent-color:#ff5c1a}
+.hero h1.hero-event-title{font-size:clamp(40px,6.4vw,88px);line-height:1.03}
+
+.checkout-door-policy{margin:18px 0;padding:14px 16px;border-left:3px solid var(--spark);background:rgba(255,92,26,.08);color:var(--text,#f6f2f8);font-size:14px;line-height:1.6}
+
+.admission-counters{margin:12px 0 24px}.admission-counter{margin:10px 0;gap:12px}.admission-counter>span{display:flex;align-items:center;gap:12px}.admission-counter small{color:var(--dim);font-size:14px}.admission-counter .qty-ctl{flex-shrink:0}.admission-total{margin:12px 0;font-size:14px;line-height:1.5;color:var(--text,#f6f2f8)}@media(max-width:420px){.admission-counter>span{align-items:flex-start;flex-direction:column;gap:5px}.admission-counter .ticket-category{padding:6px 10px}.admission-counter{padding:14px}}
+.admission-counter .qty-ctl button{width:44px;height:44px;min-width:44px}.admission-counter .qty-ctl b{min-width:24px;text-align:center;font-size:18px}
